@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="favGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Clean Background -->
+  <rect width="32" height="32" rx="9" fill="url(#favGrad)"/>
+
+  <!-- Minimalist Modern lowercase "e" with rounded geometric curves -->
+  <path fill="#FFFFFF" d="M16 7c-4.4 0-8 3.6-8 8s3.6 8 8 8c3.2 0 6-1.9 7.3-4.6h-3.8c-.9 1.1-2.2 1.8-3.5 1.8-2.2 0-4-1.8-4-4h11.8c.1-.4.2-.8.2-1.2 0-4.4-3.6-8-8-8zm-4 6.5c.3-2.1 2-3.7 4-3.7s3.7 1.6 4 3.7h-8z"/>
+
+  <!-- AI Sparkle Motif ✦ -->
+  <path fill="#FBBF24" d="M25.5 3l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/>
+</svg>

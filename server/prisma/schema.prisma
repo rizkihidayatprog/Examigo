@@ -1,0 +1,247 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  ESSAY
+  TRUE_FALSE
+  SHORT_ANSWER
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum ParticipantStatus {
+  IN_PROGRESS
+  COMPLETED
+  EXPIRED
+}
+
+enum PlanTier {
+  FREE
+  PERSONAL
+  PRO_AI
+  ENTERPRISE
+}
+
+enum TransactionStatus {
+  PENDING
+  PAID
+  EXPIRED
+  FAILED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  password     String
+  name         String
+  role         Role     @default(TEACHER)
+  plan         PlanTier @default(FREE)
+  planValidUntil DateTime?
+  aiQuotaUsed  Int      @default(0)
+  aiQuotaLimit Int      @default(15)
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+  avatarUrl            String?
+  googleId             String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  subjects     Subject[]
+  materials    Material[]
+  questions    Question[]
+  exams        Exam[]
+  participants Participant[]
+  transactions Transaction[]
+}
+
+model Transaction {
+  id            String            @id @default(uuid())
+  orderId       String            @unique
+  userId        String?
+  user          User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  plan          PlanTier
+  billingCycle  String?           // MONTHLY | YEARLY
+  amount        Int
+  paymentMethod String?
+  paymentUrl    String?           @db.Text
+  status        TransactionStatus @default(PENDING)
+  couponId      String?
+  coupon        Coupon?           @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  discountAmt   Int               @default(0)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+model Coupon {
+  id              String   @id @default(uuid())
+  code            String   @unique
+  discountPercent Int      // Percentage discount 1-100
+  maxUses         Int?     // Limit total usages, null = unlimited
+  usedCount       Int      @default(0)
+  validUntil      DateTime?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  transactions    Transaction[]
+}
+
+model Subject {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  teacherId   String
+  teacher     User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  materials Material[]
+  questions Question[]
+  exams     Exam[]
+}
+
+model Material {
+  id            String   @id @default(uuid())
+  title         String
+  fileUrl       String?
+  fileType      String?  // PDF, DOCX, PPT, TXT
+  extractedText String   @db.Text
+  subjectId     String?
+  subject       Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  teacherId     String
+  teacher       User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  questions Question[]
+}
+
+model Question {
+  id          String       @id @default(uuid())
+  text        String       @db.Text
+  type        QuestionType @default(MULTIPLE_CHOICE)
+  difficulty  Difficulty   @default(MEDIUM)
+  topic       String?
+  points      Float        @default(1.0)
+  grade       String?
+  subjectId   String?
+  subject     Subject?     @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  teacherId   String
+  teacher     User         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  materialId  String?
+  material    Material?    @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  imageUrl    String?      @db.Text
+  explanation String?      @db.Text
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  choices       Choice[]
+  examQuestions ExamQuestion[]
+  answers       Answer[]
+}
+
+model Choice {
+  id         String   @id @default(uuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String   @db.Text
+  isCorrect  Boolean  @default(false)
+
+  answers Answer[]
+}
+
+model Exam {
+  id                 String   @id @default(uuid())
+  title              String
+  description        String?  @db.Text
+  code               String   @unique // Access code (e.g. EXAM-89A2)
+  startTime          DateTime?
+  endTime            DateTime?
+  durationMinutes    Int      @default(60)
+  minPassingScore    Float    @default(70.0)
+  password           String?
+  isPublished        Boolean  @default(false)
+  randomizeQuestions Boolean  @default(true)
+  randomizeChoices   Boolean  @default(true)
+  grade              String?
+  subjectId          String?
+  subject            Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  teacherId          String
+  teacher            User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  examQuestions ExamQuestion[]
+  participants  Participant[]
+  results       Result[]
+}
+
+model ExamQuestion {
+  id         String   @id @default(uuid())
+  examId     String
+  exam       Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  order      Int      @default(1)
+  points     Float    @default(1.0)
+}
+
+model Participant {
+  id            String            @id @default(uuid())
+  examId        String
+  exam          Exam              @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studentId     String?
+  student       User?             @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  studentName   String
+  studentEmail  String
+  startedAt     DateTime          @default(now())
+  submittedAt   DateTime?
+  status        ParticipantStatus @default(IN_PROGRESS)
+  cheatingCount Int               @default(0)
+
+  answers Answer[]
+  result  Result?
+}
+
+model Answer {
+  id               String      @id @default(uuid())
+  participantId   String
+  participant     Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  questionId      String
+  question        Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedChoiceId String?
+  selectedChoice   Choice?     @relation(fields: [selectedChoiceId], references: [id], onDelete: SetNull)
+  textAnswer       String?     @db.Text
+  isCorrect        Boolean?
+  score            Float?      @default(0)
+  autoSavedAt      DateTime    @default(now()) @updatedAt
+}
+
+model Result {
+  id            String      @id @default(uuid())
+  participantId String      @unique
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  examId        String
+  exam          Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
+  totalScore    Float
+  maxScore      Float
+  percentage    Float
+  isPassed      Boolean
+  gradedAt      DateTime    @default(now())
+}

@@ -1,0 +1,23 @@
+{
+  "name": "examigo-monorepo",
+  "version": "1.0.0",
+  "description": "Examigo - AI-Powered Online Exam Builder SaaS Platform",
+  "private": true,
+  "scripts": {
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "build:server": "npm run build --prefix server",
+    "build:client": "npm run build --prefix client",
+    "build": "npm run build:server && npm run build:client"
+  },
+  "keywords": [
+    "exam",
+    "ai",
+    "gemini",
+    "saas",
+    "prisma",
+    "react"
+  ],
+  "author": "",
+  "license": "ISC"
+}
