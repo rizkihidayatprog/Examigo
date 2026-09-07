@@ -8,6 +8,14 @@ Dokumen ini mencatat seluruh riwayat pekerjaan, fitur yang diimplementasikan, da
 - **Status**: Dual Payment Gateway Active (Midtrans Native Core API & Direct QRIS via bits-qris), Custom-Branded Payment UI Implemented, Full-Stack Security Hardening Completed, Google OAuth / GIS Implemented, & Full-Stack Maintenance Mode Active.
 - **Terakhir Diperbarui**: 2026-09-07
 
+### Sinkronisasi & Pembaruan PRD.md Sesuai Realita Kode Sumber & Fitur Live
+- [x] **Penyelarasan Dokumen Spesifikasi Produk (`PRD.md`)**:
+  - Mengoreksi gateway pembayaran dari legacy Pakasir menjadi Dual Gateway aktif: **Direct Dynamic QRIS (`bits-qris`)** & **Midtrans Native Core API** (VA BCA, BNI, BRI, Permata, Mandiri Bill Payment) serta modul Mayar.
+  - Memperbarui stack database dari Supabase Postgres ke dukungan fleksibel Prisma ORM (MySQL / MariaDB / PostgreSQL).
+  - Melengkapi model database Prisma di PRD (`Transaction`, `Coupon`, `Feedback`, serta perluasan field pada `User`, `Exam`, `Participant`).
+  - Memutakhirkan status Roadmap: menandai fitur yang sebelumnya di Versi 2.0 (Sertifikat Otomatis, Live Monitoring Peserta, Anti-Cheat / Proctoring, QR Code Akses) menjadi selesai dan aktif di Versi 1.x.
+  - Menambahkan dokumentasi modul Super Admin & Admin CMS 10 Tab, Keamanan (Rate limiter dinamis, Dev mode bypass, CSRF guard, CORS whitelist), serta tata kelola paket dan kuota free 15 butir soal.
+
 ### Perbaikan Tombol "Masuk ke Dashboard Workspace" pada Halaman Sukses (`PaymentSuccessPage.tsx`)
 - [x] **Penyebab Utama Mengapa Sebelumnya Harus Reload Manual**:
   - Di `client/src/App.tsx`, halaman `/payment/success` berada dalam blok `if (isFullWidthPage)` yang memiliki tabel rute `<Routes>` tersendiri tanpa rute `/dashboard`.
