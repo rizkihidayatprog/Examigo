@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import ExamigoLogo from '../components/common/ExamigoLogo';
-import { processMidtransCheckout, checkMidtransPaymentStatus } from '../lib/payment';
+import { processMidtransCheckout, checkMidtransPaymentStatus, loadMidtransSnap } from '../lib/payment';
 import { applyDynamicTheme } from '../lib/theme';
 import SEO from '../components/common/SEO';
 import styles from '../styles/LandingPage.module.css';
@@ -224,25 +224,28 @@ export default function LandingPage() {
 
       setActiveOrder(result);
 
-      if (result.snapToken && window.snap) {
-        window.snap.pay(result.snapToken, {
-          onSuccess: () => {
-            setVerificationStatus('Pembayaran Lunas! Akun berhasil di-upgrade.');
-            setTimeout(() => {
-              setPaymentModalOpen(false);
-              navigate('/dashboard');
-            }, 1500);
-          },
-          onPending: () => {
-            setVerificationStatus('Status: Menunggu Pembayaran. Silakan selesaikan transaksi.');
-          },
-          onError: () => {
-            setPaymentError('Pembayaran gagal diproses melalui Midtrans.');
-          },
-          onClose: () => {
-            handleVerifyMidtransStatus();
-          }
-        });
+      if (result.snapToken) {
+        await loadMidtransSnap(result.isProduction, result.clientKey);
+        if (window.snap) {
+          window.snap.pay(result.snapToken, {
+            onSuccess: () => {
+              setVerificationStatus('Pembayaran Lunas! Akun berhasil di-upgrade.');
+              setTimeout(() => {
+                setPaymentModalOpen(false);
+                navigate('/dashboard');
+              }, 1500);
+            },
+            onPending: () => {
+              setVerificationStatus('Status: Menunggu Pembayaran. Silakan selesaikan transaksi.');
+            },
+            onError: () => {
+              setPaymentError('Pembayaran gagal diproses melalui Midtrans.');
+            },
+            onClose: () => {
+              handleVerifyMidtransStatus();
+            }
+          });
+        }
       }
     } catch (err: any) {
       setPaymentError(err.message || 'Gagal memulai transaksi Midtrans');
@@ -1572,7 +1575,8 @@ export default function LandingPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {activeOrder?.snapToken && (
                     <button
-                      onClick={() => {
+                      onClick={async () => {
+                        await loadMidtransSnap(activeOrder?.isProduction, activeOrder?.clientKey);
                         if (window.snap) {
                           window.snap.pay(activeOrder.snapToken, {
                             onSuccess: () => {

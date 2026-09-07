@@ -13,19 +13,31 @@ export interface CheckoutResult {
   autoPaid?: boolean;
 }
 
-export const loadMidtransSnap = (isProduction: boolean = false, clientKey?: string): Promise<void> => {
+export const loadMidtransSnap = (
+  isProduction: boolean = import.meta.env.VITE_MIDTRANS_IS_PRODUCTION === 'true',
+  clientKey?: string
+): Promise<void> => {
   return new Promise((resolve) => {
     const cKey = clientKey || import.meta.env.VITE_MIDTRANS_CLIENT_KEY || 'Mid-client-OMIOTErdLFHHLfaI';
     const targetSrc = isProduction
       ? 'https://app.midtrans.com/snap/snap.js'
       : 'https://app.sandbox.midtrans.com/snap/snap.js';
 
-    const existingScript = document.getElementById('midtrans-snap-js') as HTMLScriptElement | null;
-    if (existingScript) {
-      if (existingScript.src === targetSrc && (window as any).snap) {
-        return resolve();
+    // Cari semua script Snap yang ada (baik dengan ID maupun querySelector URL)
+    const existingScripts = document.querySelectorAll<HTMLScriptElement>('script[src*="midtrans.com/snap"]');
+    let hasExactScript = false;
+
+    existingScripts.forEach((s) => {
+      if (s.src === targetSrc && (window as any).snap) {
+        hasExactScript = true;
+      } else {
+        s.remove();
+        delete (window as any).snap;
       }
-      existingScript.remove();
+    });
+
+    if (hasExactScript && (window as any).snap) {
+      return resolve();
     }
 
     const script = document.createElement('script');

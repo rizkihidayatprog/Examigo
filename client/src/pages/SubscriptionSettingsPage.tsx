@@ -27,6 +27,7 @@ import {
   ShoppingCart
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
+import { loadMidtransSnap } from '../lib/payment';
 
 export default function SubscriptionSettingsPage() {
   const { user, updateUser } = useAuth();
@@ -179,23 +180,28 @@ export default function SubscriptionSettingsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        if (data.snapToken && window.snap) {
-          window.snap.pay(data.snapToken, {
-            onSuccess: () => {
-              alert('Pembayaran kuota tambahan berhasil! Kuota akun Anda telah diperbarui.');
-              window.location.reload();
-            },
-            onPending: () => {
-              alert('Transaksi tercatat. Silakan selesaikan pembayaran Anda.');
-            },
-            onError: () => {
-              alert('Pembayaran gagal diproses melalui Midtrans.');
-            },
-            onClose: () => {
-              // User closed popup
-            }
-          });
-        } else if (data.paymentUrl) {
+        if (data.snapToken) {
+          await loadMidtransSnap(data.isProduction, data.clientKey);
+          if (window.snap) {
+            window.snap.pay(data.snapToken, {
+              onSuccess: () => {
+                alert('Pembayaran kuota tambahan berhasil! Kuota akun Anda telah diperbarui.');
+                window.location.reload();
+              },
+              onPending: () => {
+                alert('Transaksi tercatat. Silakan selesaikan pembayaran Anda.');
+              },
+              onError: () => {
+                alert('Pembayaran gagal diproses melalui Midtrans.');
+              },
+              onClose: () => {
+                // User closed popup
+              }
+            });
+            return;
+          }
+        }
+        if (data.paymentUrl) {
           window.location.href = data.paymentUrl;
         }
       } else {
