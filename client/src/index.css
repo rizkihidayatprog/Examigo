@@ -1,97 +1,195 @@
+@import './styles/design-system.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   html, body {
-    @apply bg-slate-50 text-slate-900 min-h-screen overflow-x-hidden antialiased selection:bg-indigo-100 selection:text-indigo-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300;
+    background-color: var(--theme-bg, #F0FDF4);
+    color: var(--theme-text-title, #064E3B);
+    min-height: 100vh;
+    overflow-x: hidden;
     font-family: 'Plus Jakarta Sans', sans-serif;
   }
 
+  html.dark, html.dark body {
+    background-color: #020617 !important; /* slate-950 */
+    color: #f1f5f9 !important; /* slate-100 */
+  }
+
   :fullscreen, :-webkit-full-screen, :-moz-full-screen {
-    @apply bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300 !important;
+    background-color: var(--theme-bg, #F0FDF4) !important;
+    color: var(--theme-text-title, #064E3B) !important;
     overflow-y: auto !important;
+  }
+
+  html.dark :fullscreen, html.dark :-webkit-full-screen, html.dark :-moz-full-screen {
+    background-color: #020617 !important;
+    color: #f1f5f9 !important;
   }
 }
 
-/* Bespoke SaaS Components */
+/* Bespoke SaaS Components - Dynamically Themed */
 .saas-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
-  border-radius: 0.75rem; /* 12px */
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--theme-surface, #ffffff);
+  border: 1.5px solid var(--theme-border, #A7F3D0);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  border-radius: 1.25rem;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .saas-card:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  border-color: var(--theme-mint, #10B981);
+  box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.saas-card-navy {
+  background: linear-gradient(135deg, var(--theme-primary-dark, #064E3B) 0%, var(--theme-primary, #065F46) 60%, rgba(0,0,0,0.85) 100%);
+  border: 1px solid var(--theme-mint, #059669);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.25);
+  border-radius: 1.25rem;
+  color: #FFFFFF;
 }
 
 .saas-button-primary {
-  background: #4f46e5;
+  background: var(--theme-mint, #10B981);
   color: #ffffff;
-  font-weight: 600;
-  border-radius: 0.625rem; /* 10px */
-  box-shadow: 0 1px 2px 0 rgba(79, 70, 229, 0.3);
-  transition: all 0.15s ease;
+  font-weight: 800;
+  border-radius: 0.875rem;
+  box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.2);
+  transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
 }
 
 .saas-button-primary:hover {
-  background: #4338ca;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  background: var(--theme-mint-hover, #059669);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  transform: translateY(-1px);
+}
+
+.saas-button-primary:active {
+  transform: scale(0.97);
 }
 
 .saas-button-secondary {
-  background: #ffffff;
-  color: #334155;
-  border: 1px solid #cbd5e1;
-  font-weight: 600;
-  border-radius: 0.625rem;
-  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.03);
-  transition: all 0.15s ease;
+  background: var(--theme-surface, #FFFFFF);
+  color: var(--theme-text-title, #064E3B);
+  border: 1.5px solid var(--theme-border, #A7F3D0);
+  font-weight: 800;
+  border-radius: 0.875rem;
+  box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.04);
+  transition: all 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .saas-button-secondary:hover {
-  background: #f8fafc;
-  border-color: #94a3b8;
-  color: #0f172a;
+  background: var(--theme-mint-light, #ECFDF5);
+  border-color: var(--theme-mint, #10B981);
+  color: var(--theme-primary, #059669);
+  transform: translateY(-1px);
+}
+
+.saas-button-secondary:active {
+  transform: scale(0.97);
+}
+
+.saas-button-butter {
+  background: var(--theme-mint, #059669);
+  color: #FFFFFF;
+  font-weight: 800;
+  border-radius: 0.875rem;
+  box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.2);
+  transition: all 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.saas-button-butter:hover {
+  background: var(--theme-text-muted, #047857);
+  transform: translateY(-1px);
 }
 
 .saas-badge {
   display: inline-flex;
-  items-center: center;
-  padding: 0.125rem 0.5rem;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
   border-radius: 9999px;
-  font-size: 0.6875rem; /* 11px */
-  font-weight: 700;
-  letter-spacing: 0.025em;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+  background-color: var(--theme-mint-light, #ECFDF5);
+  color: var(--theme-primary, #059669);
+  border: 1px solid var(--theme-border, #A7F3D0);
 }
 
 .saas-input {
   width: 100%;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.625rem;
-  padding: 0.625rem 0.875rem;
-  font-size: 0.8125rem; /* 13px */
+  border: 1.5px solid var(--theme-border, #A7F3D0);
+  border-radius: 0.875rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
   font-weight: 500;
-  color: #0f172a;
-  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.03);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  color: var(--theme-primary-dark, #064E3B);
+  box-shadow: 0 2px 4px 0 rgba(6, 78, 59, 0.02);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .saas-input:focus {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: var(--theme-primary, #10B981);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
 }
 
 @keyframes fadeInFast {
-  from { opacity: 0; transform: translateY(3px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-in-fast {
-  animation: fadeInFast 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: fadeInFast 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+.animate-float-slow {
+  animation: floatSlow 4s ease-in-out infinite;
+}
+
+@keyframes floatFast {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+}
+.animate-float-fast {
+  animation: floatFast 3s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.25; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.05); }
+}
+.animate-pulse-glow {
+  animation: pulseGlow 6s ease-in-out infinite;
+}
+
+/* ── AI Progress Bar Animations ─────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }

@@ -1,0 +1,34 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+Allow: /landing
+Allow: /login
+Allow: /register
+Allow: /terms
+Allow: /privacy
+Allow: /refund
+Allow: /contact
+Allow: /exam-room
+Allow: /exam/join
+Allow: /verify
+
+# Block search engine bots from crawling private authenticated apps and admin areas
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /dashboard/*
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /ai-generator
+Disallow: /question-bank
+Disallow: /exam-builder
+Disallow: /certificates
+Disallow: /analytics
+Disallow: /live-monitor
+Disallow: /live-monitor/*
+Disallow: /subscription
+Disallow: /profile
+Disallow: /checkout
+Disallow: /payment
+
+# XML Sitemap Location
+Sitemap: https://examigo.id/sitemap.xml

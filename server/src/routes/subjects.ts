@@ -10,11 +10,55 @@ const subjectSchema = z.object({
   description: z.string().optional(),
 });
 
+import { CURRICULUM_SUBJECTS, JenjangType } from '../lib/curriculum';
+
+// GET /api/subjects/standard
+router.get('/standard', (req: Request, res: Response) => {
+  const { jenjang } = req.query;
+  if (jenjang && typeof jenjang === 'string' && jenjang.toUpperCase() in CURRICULUM_SUBJECTS) {
+    const key = jenjang.toUpperCase() as JenjangType;
+    return res.json({ success: true, jenjang: key, data: CURRICULUM_SUBJECTS[key] });
+  }
+  res.json({ success: true, data: CURRICULUM_SUBJECTS });
+});
+
+// POST /api/subjects/ensure
+// Finds or creates a subject with the given name for the teacher
+router.post('/ensure', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { name, description } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Nama mata pelajaran wajib diisi' });
+    }
+    const cleanName = name.trim();
+    let subject = await prisma.subject.findFirst({
+      where: { name: cleanName, teacherId: req.user!.id },
+    });
+    if (!subject) {
+      subject = await prisma.subject.create({
+        data: {
+          name: cleanName,
+          description: description || 'Mata Pelajaran Kurikulum Standar',
+          teacherId: req.user!.id,
+        },
+      });
+    }
+    res.json({ success: true, data: subject });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // GET /api/subjects
 router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const subjects = await prisma.subject.findMany({
       where: { teacherId: req.user!.id },
+      include: {
+        _count: {
+          select: { questions: true },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
     res.json({ success: true, data: subjects });

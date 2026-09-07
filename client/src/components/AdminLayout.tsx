@@ -1,18 +1,32 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, CreditCard, LogOut, ShieldAlert, Tag } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, LogOut, ShieldAlert, Tag, Layout, MessageSquare } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const [maintenanceActive, setMaintenanceActive] = React.useState(false);
+
+  React.useEffect(() => {
+    fetch('/api/public/landing-config')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data?.maintenance?.enabled) {
+          setMaintenanceActive(true);
+        }
+      })
+      .catch(() => {});
+  }, [location.pathname]);
 
   const navItems = [
     { path: '/@', label: 'Overview', icon: LayoutDashboard },
     { path: '/@/users', label: 'Users', icon: Users },
     { path: '/@/transactions', label: 'Transactions', icon: CreditCard },
     { path: '/@/coupons', label: 'Kupon & Promo', icon: Tag },
+    { path: '/@/feedback', label: 'Kritik & Ulasan', icon: MessageSquare },
+    { path: '/@/cms', label: 'Landing Page & CMS', icon: Layout, hasBadge: maintenanceActive },
   ];
 
   return (
@@ -20,7 +34,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Admin Sidebar */}
       <aside className="hidden md:flex flex-col w-64 bg-slate-950 border-r border-slate-800 p-5 min-h-screen sticky top-0">
         <Link to="/@" className="flex items-center gap-3 mb-8 px-2">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center text-white shadow-lg">
             <ShieldAlert className="w-5 h-5" />
           </div>
           <div>
@@ -40,12 +54,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 to={item.path}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
-                    ? 'bg-indigo-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    ? 'bg-slate-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white hover:bg-edu-navyLight'
                 }`}
               >
                 <Icon className="w-4 h-4" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {item.hasBadge && (
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" title="Mode Pemeliharaan Aktif" />
+                )}
               </Link>
             );
           })}
@@ -76,13 +93,39 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Header Mobile */}
           <div className="md:hidden flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
             <div className="flex items-center gap-2">
-              <ShieldAlert className="w-6 h-6 text-indigo-500" />
+              <ShieldAlert className="w-6 h-6 text-slate-500" />
               <h1 className="font-bold text-lg">Admin Panel</h1>
             </div>
             <button onClick={() => { logout(); navigate('/login'); }} className="p-2 text-slate-400">
               <LogOut className="w-5 h-5" />
             </button>
           </div>
+
+          {/* Maintenance Active Alert Banner */}
+          {maintenanceActive && (
+            <div className="bg-amber-500/10 border border-amber-500/30 text-amber-200 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg shadow-amber-500/5">
+              <div className="flex items-center gap-3">
+                <span className="relative flex h-3 w-3 flex-shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                </span>
+                <div>
+                  <p className="text-xs font-bold text-amber-300">
+                    Mode Pemeliharaan (Maintenance Mode) Sedang AKTIF
+                  </p>
+                  <p className="text-[11px] text-amber-300/80">
+                    Akses publik dan pengguna non-admin saat ini dialihkan ke layar pemeliharaan.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/@/cms"
+                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black transition-all flex items-center gap-1.5 flex-shrink-0 shadow-sm"
+              >
+                Kelola / Matikan
+              </Link>
+            </div>
+          )}
 
           {/* Children View */}
           {children}

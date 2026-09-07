@@ -9,14 +9,14 @@ export default function Footer() {
         <div className="space-y-3 md:col-span-1">
           <ExamigoLogo size="md" />
           <p className="text-[11px] leading-relaxed text-slate-400">
-            Platform Pembuat Soal & Ujian Online Berbasis AI Terdepan di Indonesia. Ujian Aman, Otomatis, dan Terstruktur.
+            Platform Pembuat Soal & Ujian Online Terdepan di Indonesia. Ujian Aman, Otomatis, dan Terstruktur.
           </p>
         </div>
 
         <div>
           <h4 className="text-white font-bold text-xs uppercase tracking-wider mb-3">Produk</h4>
           <ul className="space-y-2 font-medium">
-            <li><Link to="/#fitur" className="hover:text-white transition-colors">AI Generator Soal</Link></li>
+            <li><Link to="/#fitur" className="hover:text-white transition-colors">Generator Soal</Link></li>
             <li><Link to="/#harga" className="hover:text-white transition-colors">Paket & Harga</Link></li>
             <li><Link to="/#cara-kerja" className="hover:text-white transition-colors">Cara Kerja</Link></li>
             <li><Link to="/exam/DEMO123" className="hover:text-white transition-colors">Demo Ruang Ujian</Link></li>
@@ -38,7 +38,7 @@ export default function Footer() {
             <li><Link to="/contact" className="hover:text-white transition-colors">Hubungi Kami</Link></li>
             <li><a href="mailto:support@examigo.id" className="hover:text-white transition-colors font-mono">support@examigo.id</a></li>
             <li className="pt-2 text-[11px] text-slate-500">
-              Gerbang Pembayaran Terverifikasi oleh <strong>Pakasir API</strong>.
+              Gerbang Pembayaran Terverifikasi oleh <strong>Midtrans Payment Gateway</strong>.
             </li>
           </ul>
         </div>

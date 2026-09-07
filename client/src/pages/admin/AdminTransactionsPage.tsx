@@ -55,7 +55,7 @@ export default function AdminTransactionsPage() {
                 </tr>
               ) : (
                 transactions.map((trx) => (
-                  <tr key={trx.id} className="hover:bg-slate-800/30 transition-colors">
+                  <tr key={trx.id} className="hover:bg-edu-navyLight/30 transition-colors">
                     <td className="px-6 py-4">
                       <div className="font-mono text-xs text-slate-300 truncate w-32" title={trx.id}>{trx.id}</div>
                       <div className="text-[10px] text-slate-500 mt-1">{new Date(trx.createdAt).toLocaleString('id-ID')}</div>
@@ -65,7 +65,7 @@ export default function AdminTransactionsPage() {
                       <div className="text-xs text-slate-500">{trx.user?.email || '-'}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="font-bold text-indigo-400">{trx.plan}</span>
+                      <span className="font-bold text-slate-400">{trx.plan}</span>
                       <div className="text-[10px] text-slate-500">{trx.billingCycle === 'ANNUAL' ? 'Tahunan' : 'Bulanan'}</div>
                     </td>
                     <td className="px-6 py-4 text-right">

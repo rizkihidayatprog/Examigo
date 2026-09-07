@@ -9,6 +9,8 @@ const materialSchema = z.object({
   title: z.string().min(1, 'Judul materi wajib diisi'),
   extractedText: z.string().min(1, 'Isi materi tidak boleh kosong'),
   subjectId: z.string().optional(),
+  fileUrl: z.string().optional(),
+  fileType: z.string().optional(),
 });
 
 // GET /api/materials
@@ -20,6 +22,8 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       select: {
         id: true,
         title: true,
+        fileUrl: true,
+        fileType: true,
         createdAt: true,
         subjectId: true,
         subject: {
@@ -57,6 +61,8 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
         title: data.title,
         extractedText: data.extractedText,
         subjectId: data.subjectId || null,
+        fileUrl: data.fileUrl || null,
+        fileType: data.fileType || null,
         teacherId: req.user!.id,
       },
     });

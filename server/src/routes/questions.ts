@@ -68,6 +68,26 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const data = questionSchema.parse(req.body);
 
+    // Enforce Free plan question bank capacity limit (max 15 questions)
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { plan: true, planValidUntil: true, aiQuotaUsed: true },
+    });
+
+    const isPlanExpired = !!(user?.planValidUntil && new Date(user.planValidUntil) <= new Date());
+    const effectivePlan = isPlanExpired ? 'FREE' : (user?.plan || 'FREE');
+
+    const currentCount = await prisma.question.count({
+      where: { teacherId: req.user!.id },
+    });
+
+    if (effectivePlan === 'FREE' && currentCount >= 15) {
+      return res.status(403).json({
+        success: false,
+        message: 'Kapasitas Bank Soal Paket Free Anda (maksimal 15 butir soal) telah penuh. Silakan hapus beberapa butir soal lama atau Upgrade ke paket Personal/Pro untuk menambah kapasitas penyimpanan.',
+      });
+    }
+
     const question = await prisma.question.create({
       data: {
         text: data.text,
@@ -90,6 +110,14 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
       },
       include: { choices: true, material: true },
     });
+
+    // Synchronize aiQuotaUsed to match stored questions for Free plan
+    if (effectivePlan === 'FREE') {
+      await prisma.user.update({
+        where: { id: req.user!.id },
+        data: { aiQuotaUsed: currentCount + 1 },
+      });
+    }
 
     res.status(201).json({ success: true, data: question });
   } catch (err: any) {
@@ -160,7 +188,63 @@ router.delete('/:id', authenticateToken, async (req: Request, res: Response) => 
     }
 
     await prisma.question.delete({ where: { id: req.params.id } });
+
+    // Sync Free plan aiQuotaUsed with new question count
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { plan: true },
+    });
+    if (user?.plan === 'FREE') {
+      const newCount = await prisma.question.count({
+        where: { teacherId: req.user!.id },
+      });
+      await prisma.user.update({
+        where: { id: req.user!.id },
+        data: { aiQuotaUsed: newCount },
+      });
+    }
+
     res.json({ success: true, message: 'Soal berhasil dihapus' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/questions/bulk-delete
+router.post('/bulk-delete', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'Daftar ID soal tidak valid atau kosong' });
+    }
+
+    const result = await prisma.question.deleteMany({
+      where: {
+        id: { in: ids },
+        teacherId: req.user!.id,
+      },
+    });
+
+    // Sync Free plan aiQuotaUsed with new question count
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { plan: true },
+    });
+    if (user?.plan === 'FREE') {
+      const newCount = await prisma.question.count({
+        where: { teacherId: req.user!.id },
+      });
+      await prisma.user.update({
+        where: { id: req.user!.id },
+        data: { aiQuotaUsed: newCount },
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Berhasil menghapus ${result.count} butir soal.`,
+      count: result.count,
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -170,6 +254,27 @@ router.delete('/:id', authenticateToken, async (req: Request, res: Response) => 
 router.post('/import', authenticateToken, async (req: Request, res: Response) => {
   try {
     const questionsArray = z.array(questionSchema).parse(req.body.questions);
+
+    // Enforce Free plan question bank capacity limit (max 15 questions)
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { plan: true, planValidUntil: true },
+    });
+
+    const isPlanExpired = !!(user?.planValidUntil && new Date(user.planValidUntil) <= new Date());
+    const effectivePlan = isPlanExpired ? 'FREE' : (user?.plan || 'FREE');
+
+    const currentCount = await prisma.question.count({
+      where: { teacherId: req.user!.id },
+    });
+
+    if (effectivePlan === 'FREE' && currentCount + questionsArray.length > 15) {
+      const remaining = Math.max(0, 15 - currentCount);
+      return res.status(403).json({
+        success: false,
+        message: `Kapasitas Bank Soal Paket Free Anda hanya tersisa ${remaining} butir soal (maksimal 15 butir soal). Tidak dapat mengimpor ${questionsArray.length} butir soal sekaligus. Silakan kurangi jumlah soal atau Upgrade Paket!`,
+      });
+    }
 
     // Filter and map to Prisma structure
     const createdQuestions = [];
@@ -194,6 +299,17 @@ router.post('/import', authenticateToken, async (req: Request, res: Response) =>
         },
       });
       createdQuestions.push(question);
+    }
+
+    // Sync Free plan aiQuotaUsed with new question count
+    if (effectivePlan === 'FREE') {
+      const newCount = await prisma.question.count({
+        where: { teacherId: req.user!.id },
+      });
+      await prisma.user.update({
+        where: { id: req.user!.id },
+        data: { aiQuotaUsed: newCount },
+      });
     }
 
     res.status(201).json({ success: true, count: createdQuestions.length });

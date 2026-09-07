@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { requireAdmin } from '../middleware/auth';
-import { PrismaClient } from '@prisma/client';
+import { paymentLimiter } from '../middleware/rateLimiter';
+import prisma from '../lib/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Get all coupons
 router.get('/', requireAdmin, async (req, res) => {
@@ -74,8 +74,8 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// Apply coupon (Public/Authenticated)
-router.post('/apply', async (req, res) => {
+// Apply coupon (Public/Authenticated with Rate Limiting)
+router.post('/apply', paymentLimiter, async (req, res) => {
   try {
     const { code, planAmount } = req.body;
     if (!code) return res.status(400).json({ success: false, message: 'Kode kupon tidak valid' });

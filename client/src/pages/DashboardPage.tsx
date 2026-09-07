@@ -1,8 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, FileText, HelpCircle, Users, ArrowRight, Clock, PlusCircle, CheckCircle2, BarChart2, Trash2, X, Activity, QrCode, Copy } from 'lucide-react';
+import { 
+  Sparkles, 
+  FileText, 
+  HelpCircle, 
+  Users, 
+  ArrowRight, 
+  Clock, 
+  PlusCircle, 
+  CheckCircle2, 
+  BarChart2, 
+  Trash2, 
+  X, 
+  Activity, 
+  QrCode, 
+  Copy,
+  Award,
+  Star,
+  MessageSquare,
+  Send,
+  ThumbsUp,
+  Lightbulb,
+  GraduationCap
+} from 'lucide-react';
 import { useAuth, api } from '../lib/auth';
 import { useToast } from '../components/Toast';
+import DynamicQRCode from '../components/common/DynamicQRCode';
+import styles from '../styles/DashboardPage.module.css';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>({
@@ -12,11 +36,56 @@ export default function DashboardPage() {
     averageScore: 0,
   });
   const { showToast } = useToast();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [exams, setExams] = useState<any[]>([]);
   const [activeMonitoringExam, setActiveMonitoringExam] = useState<any>(null);
   const [qrModalExam, setQrModalExam] = useState<any>(null);
   const [monitoringParticipants, setMonitoringParticipants] = useState<any[]>([]);
+  const [maintenanceFeatures, setMaintenanceFeatures] = useState<{
+    payments?: boolean;
+    aiGeneration?: boolean;
+    examCreation?: boolean;
+    studentExams?: boolean;
+  }>({});
+  const [currentGreeting, setCurrentGreeting] = useState('Selamat Datang');
+  const [currentFormattedDate, setCurrentFormattedDate] = useState('');
+
+  useEffect(() => {
+    const updateTimeAndGreeting = () => {
+      const now = new Date();
+      const hour = now.getHours();
+      let greet = 'Selamat Datang';
+      if (hour >= 4 && hour < 11) greet = 'Selamat Pagi';
+      else if (hour >= 11 && hour < 15) greet = 'Selamat Siang';
+      else if (hour >= 15 && hour < 18) greet = 'Selamat Sore';
+      else greet = 'Selamat Malam';
+      setCurrentGreeting(greet);
+
+      setCurrentFormattedDate(
+        now.toLocaleDateString('id-ID', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        })
+      );
+    };
+
+    updateTimeAndGreeting();
+    const timer = setInterval(updateTimeAndGreeting, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/public/landing-config')
+      .then(res => res.json())
+      .then(d => {
+        if (d.success && d.data?.maintenance?.features) {
+          setMaintenanceFeatures(d.data.maintenance.features);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!activeMonitoringExam) return;
@@ -35,6 +104,12 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [activeMonitoringExam]);
 
+  useEffect(() => {
+    const handleOpenFeedback = () => setShowFeedbackModal(true);
+    window.addEventListener('examigo:open_feedback', handleOpenFeedback);
+    return () => window.removeEventListener('examigo:open_feedback', handleOpenFeedback);
+  }, []);
+
   const loadStatsAndExams = () => {
     // Stats
     api('/analytics')
@@ -42,6 +117,10 @@ export default function DashboardPage() {
       .then((data) => {
         if (data.success) {
           setStats(data.data);
+          if (data.data && ((data.data.totalExams || 0) > 0 || (data.data.totalQuestions || 0) > 0)) {
+            const targetId = user?.id || 'guest';
+            localStorage.setItem(`examigo_feature_used_${targetId}`, 'true');
+          }
         }
       })
       .catch((err) => console.log('Analytics fetch error:', err));
@@ -52,14 +131,123 @@ export default function DashboardPage() {
       .then((data) => {
         if (data.success) {
           setExams(data.data);
+          if (Array.isArray(data.data) && data.data.length > 0) {
+            const targetId = user?.id || 'guest';
+            localStorage.setItem(`examigo_feature_used_${targetId}`, 'true');
+          }
         }
       })
       .catch((err) => console.log('Exams fetch error:', err));
   };
 
+  // Feedback & Rating State
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [feedbackCategory, setFeedbackCategory] = useState<'REVIEW' | 'SUGGESTION' | 'CRITIQUE'>('REVIEW');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [myFeedbacks, setMyFeedbacks] = useState<any[]>([]);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [hasSubmittedFeedback, setHasSubmittedFeedback] = useState<boolean>(false);
+
+  const loadMyFeedbacks = (activeUser?: any) => {
+    const currentUser = activeUser || user;
+    api('/feedback/my')
+      .then((res) => res.json())
+      .then((d) => {
+        if (d.success) {
+          const list = Array.isArray(d.data) ? d.data : [];
+          setMyFeedbacks(list);
+          const submitted = list.length > 0;
+          setHasSubmittedFeedback(submitted);
+
+          if (currentUser?.id) {
+            if (submitted) {
+              localStorage.setItem(`examigo_feedback_submitted_${currentUser.id}`, 'true');
+            } else {
+              localStorage.removeItem(`examigo_feedback_submitted_${currentUser.id}`);
+            }
+          }
+
+          // HANYA tampilkan modal jika akun ini SUDAH pernah menggunakan fitur untuk pertama kalinya dan belum pernah diminta
+          const targetId = currentUser?.id || 'guest';
+          const isDismissed = sessionStorage.getItem(`feedback_modal_dismissed_${targetId}`) === 'true';
+          const hasPrompted = localStorage.getItem(`examigo_feedback_prompted_${targetId}`) === 'true';
+          const hasFeatureBeenUsed = Boolean(
+            localStorage.getItem(`examigo_feature_used_${targetId}`) === 'true' ||
+            (currentUser?.examsCount && currentUser.examsCount > 0) ||
+            (currentUser?.questionsCount && currentUser.questionsCount > 0)
+          );
+
+          if (hasFeatureBeenUsed && !submitted && !isDismissed && !hasPrompted) {
+            setTimeout(() => {
+              setShowFeedbackModal(true);
+              localStorage.setItem(`examigo_feedback_prompted_${targetId}`, 'true');
+            }, 1200);
+          }
+        }
+      })
+      .catch((err) => console.log('Feedback fetch error:', err));
+  };
+
   useEffect(() => {
+    // Bersihkan legacy global key yang memblokir semua akun
+    localStorage.removeItem('examigo_feedback_submitted');
+
     loadStatsAndExams();
+    refreshUser();
   }, []);
+
+  useEffect(() => {
+    if (user?.id) {
+      const perUserSubmitted = localStorage.getItem(`examigo_feedback_submitted_${user.id}`) === 'true';
+      setHasSubmittedFeedback(perUserSubmitted);
+      loadMyFeedbacks(user);
+    }
+  }, [user?.id]);
+
+  const handleDismissFeedbackModal = () => {
+    setShowFeedbackModal(false);
+    const targetId = user?.id || 'guest';
+    sessionStorage.setItem(`feedback_modal_dismissed_${targetId}`, 'true');
+  };
+
+  const handleSubmitFeedback = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!feedbackMessage.trim() || feedbackMessage.trim().length < 3) {
+      showToast('Pesan kritik, saran, atau ulasan minimal 3 karakter.', 'error');
+      return;
+    }
+    setIsSubmittingFeedback(true);
+    try {
+      const res = await api('/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rating: feedbackRating,
+          category: feedbackCategory,
+          message: feedbackMessage.trim(),
+        }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        showToast(d.message, 'success');
+        setFeedbackMessage('');
+        setShowFeedbackModal(false);
+        setHasSubmittedFeedback(true);
+        if (user?.id) {
+          localStorage.setItem(`examigo_feedback_submitted_${user.id}`, 'true');
+        }
+        loadMyFeedbacks(user);
+      } else {
+        showToast(d.message || 'Gagal mengirim ulasan.', 'error');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Terjadi gangguan koneksi.', 'error');
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  };
 
   const handleDeleteExam = async (id: string) => {
     if (!confirm('Apakah Anda yakin ingin menghapus ujian ini? Semua data relasi ujian juga akan terhapus.')) return;
@@ -75,348 +263,812 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in-fast">
-      {/* Hero Welcome Banner */}
-      <div className="saas-card p-6 md:p-8 bg-white border border-slate-200/80 shadow-sm relative overflow-hidden">
-        <div className="relative z-10 max-w-3xl space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold">
-              <Sparkles className="w-3.5 h-3.5" /> Examigo Workspace SaaS
-            </span>
-            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full border text-xs font-extrabold ${
-              user?.plan === 'PRO_AI' 
-                ? 'bg-amber-50 border-amber-200 text-amber-700' 
-                : user?.plan === 'PERSONAL'
-                  ? 'bg-blue-50 border-blue-200 text-blue-700'
-                  : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-            }`}>
-              ● Paket Aktif: {user?.plan || 'FREE (Dasar)'}
-            </span>
+    <div className={styles.dashboardContainer}>
+      {/* 1. Hero Welcome Banner (Modern, Clean & Dynamic) */}
+      <div className={styles.heroBanner}>
+        {/* Subtle grid pattern & ambient gentle light glow */}
+        <div className={styles.heroGridPattern} />
+        <div className={styles.heroMeshGlow} />
+
+        <div className={styles.heroMainLayout}>
+          {/* Left Column: Greeting, Description, Actions */}
+          <div className={styles.heroContent}>
+            <div className={styles.heroBadgesRow}>
+              <span className={styles.pillTagStudio}>
+                <Sparkles style={{ width: '13px', height: '13px', fill: 'currentColor' }} /> Examigo Studio
+              </span>
+              <span className={`${styles.pillTagPlan} ${
+                user?.plan === 'PRO_AI' 
+                  ? styles.planPro 
+                  : user?.plan === 'PERSONAL'
+                    ? styles.planPersonal
+                    : styles.planFree
+              }`}>
+                <span className={styles.planDot} />
+                <span>Paket: {user?.plan === 'PRO_AI' ? 'Pro AI' : user?.plan || 'Free'}</span>
+              </span>
+              {currentFormattedDate && (
+                <span className={styles.heroDatePill}>
+                  <Clock style={{ width: '12px', height: '12px' }} />
+                  <span>{currentFormattedDate}</span>
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <h1 className={styles.heroTitle}>
+                {currentGreeting}, <span className={styles.heroName}>{user?.name?.split(' ')[0] || 'Bapak/Ibu Guru'}</span>
+              </h1>
+              <p className={styles.heroSubtitle}>
+                Platform cerdas untuk meracik soal dari materi pelajaran, mengelola bank soal terpadu, dan meluncurkan ujian online secara akurat dan mudah.
+              </p>
+            </div>
+
+            <div className={styles.heroActionGroup}>
+              <Link 
+                to="/ai-generator" 
+                className={styles.btnPrimaryAction}
+                style={maintenanceFeatures.aiGeneration ? { opacity: 0.85 } : undefined}
+              >
+                <Sparkles style={{ width: '15px', height: '15px', fill: 'currentColor', color: '#D97706' }} />
+                <span>Generate Soal Otomatis</span>
+                {maintenanceFeatures.aiGeneration && (
+                  <span className="text-[9px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.5 rounded-full ml-1">
+                    Maint.
+                  </span>
+                )}
+              </Link>
+              <Link 
+                to="/exam-builder" 
+                className={styles.btnSecondaryAction}
+                style={maintenanceFeatures.examCreation ? { opacity: 0.85 } : undefined}
+              >
+                <PlusCircle style={{ width: '15px', height: '15px' }} />
+                <span>Buat Ujian Baru</span>
+                {maintenanceFeatures.examCreation && (
+                  <span className="text-[9px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.5 rounded-full ml-1">
+                    Maint.
+                  </span>
+                )}
+              </Link>
+              <Link 
+                to="/question-bank" 
+                className={styles.btnGhostAction}
+              >
+                <FileText style={{ width: '15px', height: '15px' }} />
+                <span>Bank Soal</span>
+              </Link>
+              {user?.plan && user.plan !== 'FREE' ? (
+                <Link to="/certificates" className={styles.btnGhostAction}>
+                  <Award style={{ width: '15px', height: '15px', color: '#FDE047' }} />
+                  <span>Sertifikat</span>
+                </Link>
+              ) : (
+                <Link 
+                  to="/subscription" 
+                  className={styles.btnUpgradeAction}
+                  style={maintenanceFeatures.payments ? { opacity: 0.85 } : undefined}
+                >
+                  <Sparkles style={{ width: '15px', height: '15px' }} />
+                  <span>Upgrade Pro</span>
+                  {maintenanceFeatures.payments && (
+                    <span className="text-[9px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.5 rounded-full ml-1">
+                      Maint.
+                    </span>
+                  )}
+                </Link>
+              )}
+            </div>
           </div>
 
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
-            Selamat Datang di Workspace <span className="text-indigo-600">Examigo</span>
-          </h1>
-          <p className="text-slate-600 text-xs md:text-sm leading-relaxed max-w-2xl font-normal">
-            Platform SaaS cerdas untuk menghasilkan soal dari dokumen materi, mengelola bank soal terpadu, serta meluncurkan ujian online secara otomatis.
-          </p>
+          {/* Right Column: Live Workspace Overview Card */}
+          <div className={styles.heroWidgetCard}>
+            <div className={styles.widgetHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span className={styles.pulseLiveDot} />
+                <span className={styles.widgetLiveStatus}>Workspace Terhubung</span>
+              </div>
+              <span className={styles.widgetRoleBadge}>{user?.role || 'Guru'}</span>
+            </div>
 
-          <div className="flex flex-wrap gap-3 pt-2">
-            <Link
-              to="/ai-generator"
-              className="saas-button-primary inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold"
-            >
-              <Sparkles className="w-4 h-4" />
-              Generate Soal via AI
-            </Link>
-            <Link
-              to="/exam-builder"
-              className="saas-button-secondary inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold"
-            >
-              <PlusCircle className="w-4 h-4 text-slate-500" />
-              Buat Ujian Baru
-            </Link>
-            <Link
-              to="/subscription"
-              className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-xs"
-            >
-              <Sparkles className="w-4 h-4 fill-current text-amber-200" />
-              Upgrade ke Pro AI
-            </Link>
+            <div className={styles.widgetMetricsGrid}>
+              <div className={styles.widgetMetricItem}>
+                <div className={styles.widgetMetricNumber}>
+                  {stats.totalQuestions || 0}
+                </div>
+                <div className={styles.widgetMetricLabel}>
+                  <HelpCircle style={{ width: '12px', height: '12px', color: '#34D399' }} />
+                  <span>Soal</span>
+                </div>
+              </div>
+
+              <div className={styles.widgetMetricItem}>
+                <div className={styles.widgetMetricNumber}>
+                  {stats.totalExams || 0}
+                </div>
+                <div className={styles.widgetMetricLabel}>
+                  <FileText style={{ width: '12px', height: '12px', color: '#38BDF8' }} />
+                  <span>Ujian</span>
+                </div>
+              </div>
+
+              <div className={styles.widgetMetricItem}>
+                <div className={styles.widgetMetricNumber}>
+                  {stats.totalParticipants || 0}
+                </div>
+                <div className={styles.widgetMetricLabel}>
+                  <Users style={{ width: '12px', height: '12px', color: '#C084FC' }} />
+                  <span>Peserta</span>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.widgetFooter}>
+              <span className={styles.widgetSchoolInfo} title={user?.institution || 'Institusi Pendidikan'}>
+                <GraduationCap style={{ width: '13px', height: '13px', display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                <span>{user?.institution || 'Lembaga Pendidikan'}</span>
+              </span>
+              <Link to="/analytics" className={styles.widgetViewLink}>
+                <span>Lihat Analitik</span>
+                <ArrowRight style={{ width: '12px', height: '12px' }} />
+              </Link>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Interactive Onboarding Guide for New Teachers */}
+      {/* System Partial Maintenance Notice */}
+      {Object.values(maintenanceFeatures).some(Boolean) && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 text-xs font-bold flex items-center justify-between gap-3 animate-fade-in shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="text-base shrink-0">⚠️</span>
+            <span>
+              <strong>Pemberitahuan Sistem:</strong> Beberapa fitur sedang dalam pemeliharaan berkala ({[
+                maintenanceFeatures.aiGeneration && 'Generator Soal',
+                maintenanceFeatures.examCreation && 'Pembuatan Ujian',
+                maintenanceFeatures.payments && 'Pembayaran',
+                maintenanceFeatures.studentExams && 'Ujian Siswa',
+              ].filter(Boolean).join(', ')}). Fitur lainnya tetap dapat Anda gunakan dengan normal.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Interactive Onboarding Guide for New Teachers */}
       {stats.totalQuestions === 0 && (
-        <div className="p-6 rounded-2xl bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white shadow-xl space-y-4 animate-fade-in-fast border border-indigo-700/50 relative overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/30 text-indigo-200 text-[11px] font-bold border border-indigo-400/30">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Panduan Selamat Datang Examigo
-              </div>
-              <h2 className="text-xl font-black tracking-tight text-white">Mulai Buat Ujian Pertama Anda dalam 3 Langkah!</h2>
-              <p className="text-xs text-indigo-200 font-medium leading-relaxed max-w-xl">
-                Selamat datang di Examigo. Ikuti alur ringkas di bawah ini untuk meracik soal otomatis dengan AI dan mempublikasikannya ke siswa Anda.
-              </p>
+        <div className={styles.onboardingCard}>
+          <div className={styles.onboardingHeader}>
+            <div className={styles.onboardingPill}>
+              <GraduationCap style={{ width: '13px', height: '13px' }} /> Panduan Alur Kerja Ujian
             </div>
+            <h2 className={styles.onboardingTitle}>Panduan 3 Langkah Memulai Ujian Online</h2>
+            <p className={styles.onboardingDesc}>
+              Pelajari alur praktis dari penyusunan soal hingga pembagian link ujian dan rekap nilai otomatis siswa.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-            <Link to="/ai-generator" className="p-4 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 transition-all space-y-2 group">
-              <div className="flex items-center justify-between">
-                <span className="w-6 h-6 rounded-full bg-indigo-500 text-white font-black text-xs flex items-center justify-center">1</span>
-                <Sparkles className="w-4 h-4 text-amber-300 group-hover:scale-110 transition-transform" />
+          <div className={styles.onboardingStepsGrid}>
+            {/* Step 1 */}
+            <Link to="/ai-generator" className={styles.stepItemCard}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className={styles.stepNumber}>1</span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--theme-primary, #059669)', background: 'var(--theme-mint-light, #ECFDF5)', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid var(--theme-border, #A7F3D0)' }}>
+                  ± 1 Menit
+                </span>
               </div>
-              <h4 className="text-xs font-bold text-white">1. Generasi Soal AI</h4>
-              <p className="text-[11px] text-indigo-200 font-medium">Unggah materi PDF/DOCX untuk dibuatkan soal otomatis.</p>
+              <div>
+                <h4 className={styles.stepHeading}>Buat Soal dari Materi</h4>
+                <p className={styles.stepBody}>Unggah modul / ketik topik materi untuk menyusun butir soal otomatis.</p>
+              </div>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '11px', color: 'var(--theme-text-body, #065F46)' }}>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CheckCircle2 style={{ width: '13px', height: '13px', color: 'var(--theme-primary, #10B981)', flexShrink: 0 }} />
+                  <span>Dukung dokumen Word, PDF, & foto teks</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CheckCircle2 style={{ width: '13px', height: '13px', color: 'var(--theme-primary, #10B981)', flexShrink: 0 }} />
+                  <span>Kunci jawaban & pembahasan instan</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CheckCircle2 style={{ width: '13px', height: '13px', color: 'var(--theme-primary, #10B981)', flexShrink: 0 }} />
+                  <span>Tersimpan aman ke Bank Soal Anda</span>
+                </li>
+              </ul>
+              <div style={{ marginTop: 'auto', paddingTop: '0.625rem', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 800, color: 'var(--theme-primary, #059669)' }}>
+                <span>Buka Generator Soal</span>
+                <ArrowRight style={{ width: '14px', height: '14px' }} />
+              </div>
             </Link>
 
-            <Link to="/exam-builder" className="p-4 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 transition-all space-y-2 group">
-              <div className="flex items-center justify-between">
-                <span className="w-6 h-6 rounded-full bg-indigo-500 text-white font-black text-xs flex items-center justify-center">2</span>
-                <FileText className="w-4 h-4 text-blue-300 group-hover:scale-110 transition-transform" />
+            {/* Step 2 */}
+            <Link to="/exam-builder" className={styles.stepItemCard}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className={styles.stepNumber}>2</span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--theme-primary, #059669)', background: 'var(--theme-mint-light, #ECFDF5)', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid var(--theme-border, #A7F3D0)' }}>
+                  ± 2 Menit
+                </span>
               </div>
-              <h4 className="text-xs font-bold text-white">2. Racik & Dapatkan Kode</h4>
-              <p className="text-[11px] text-indigo-200 font-medium">Atur durasi, acak pilihan, lalu terbitkan Kode Ujian.</p>
+              <div>
+                <h4 className={styles.stepHeading}>Atur Jadwal & Kode Ujian</h4>
+                <p className={styles.stepBody}>Pilih butir soal dari bank, atur durasi, dan tentukan aturan CBT.</p>
+              </div>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '11px', color: 'var(--theme-text-body, #065F46)' }}>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CheckCircle2 style={{ width: '13px', height: '13px', color: 'var(--theme-primary, #10B981)', flexShrink: 0 }} />
+                  <span>Acak urutan soal & opsi jawaban</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CheckCircle2 style={{ width: '13px', height: '13px', color: 'var(--theme-primary, #10B981)', flexShrink: 0 }} />
+                  <span>Fitur anti-curang & proteksi keluar tab</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CheckCircle2 style={{ width: '13px', height: '13px', color: 'var(--theme-primary, #10B981)', flexShrink: 0 }} />
+                  <span>Dapatkan Kode Akses & QR Code ujian</span>
+                </li>
+              </ul>
+              <div style={{ marginTop: 'auto', paddingTop: '0.625rem', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 800, color: 'var(--theme-primary, #059669)' }}>
+                <span>Buka Exam Builder</span>
+                <ArrowRight style={{ width: '14px', height: '14px' }} />
+              </div>
             </Link>
 
-            <Link to="/analytics" className="p-4 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 transition-all space-y-2 group">
-              <div className="flex items-center justify-between">
-                <span className="w-6 h-6 rounded-full bg-indigo-500 text-white font-black text-xs flex items-center justify-center">3</span>
-                <BarChart2 className="w-4 h-4 text-emerald-300 group-hover:scale-110 transition-transform" />
+            {/* Step 3 */}
+            <Link to="/analytics" className={styles.stepItemCard}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className={styles.stepNumber}>3</span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--theme-primary, #059669)', background: 'var(--theme-mint-light, #ECFDF5)', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid var(--theme-border, #A7F3D0)' }}>
+                  Otomatis
+                </span>
               </div>
-              <h4 className="text-xs font-bold text-white">3. Pantau Nilai Real-Time</h4>
-              <p className="text-[11px] text-indigo-200 font-medium">Terima skor otomatis & ekspor laporan PDF/Excel.</p>
+              <div>
+                <h4 className={styles.stepHeading}>Siswa Kerjakan & Rekap Nilai</h4>
+                <p className={styles.stepBody}>Siswa masuk melalui kode ujian tanpa ribet login atau install aplikasi.</p>
+              </div>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '11px', color: 'var(--theme-text-body, #065F46)' }}>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CheckCircle2 style={{ width: '13px', height: '13px', color: 'var(--theme-primary, #10B981)', flexShrink: 0 }} />
+                  <span>Koreksi skor instan begitu siswa selesai</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CheckCircle2 style={{ width: '13px', height: '13px', color: 'var(--theme-primary, #10B981)', flexShrink: 0 }} />
+                  <span>Sertifikat digital otomatis bagi yang lulus</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CheckCircle2 style={{ width: '13px', height: '13px', color: 'var(--theme-primary, #10B981)', flexShrink: 0 }} />
+                  <span>Unduh rekap nilai & analisis ke Excel</span>
+                </li>
+              </ul>
+              <div style={{ marginTop: 'auto', paddingTop: '0.625rem', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 800, color: 'var(--theme-primary, #059669)' }}>
+                <span>Lihat Hasil & Analitik</span>
+                <ArrowRight style={{ width: '14px', height: '14px' }} />
+              </div>
             </Link>
           </div>
         </div>
       )}
 
-      {/* Metrics Overview Cards with Tier Quota Limits */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="saas-card p-5 bg-white border border-slate-200/80 flex items-center justify-between">
+      {/* 3. Metrics Overview Cards */}
+      <div className={styles.metricsGrid}>
+        <div className={styles.metricCard}>
           <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Paket Ujian</p>
-            <p className="text-2xl font-extrabold text-slate-900 mt-1">
+            <p className={styles.metricLabel}>Paket Ujian</p>
+            <p className={styles.metricValue}>
               {stats.totalExams} 
-              <span className="text-xs font-semibold text-slate-400">
-                {user?.plan === 'FREE' ? ' / 1 Ujian (Free)' : user?.plan === 'PERSONAL' ? ' / 5 Ujian' : ' / ∞ (Pro)'}
+              <span className={styles.metricLimit}>
+                {user?.plan === 'FREE' ? '/ 1 (Free)' : user?.plan === 'PERSONAL' ? '/ 5' : '/ ∞ (Pro)'}
               </span>
             </p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center">
-            <FileText className="w-5 h-5" />
+          <div className={styles.metricIconBox}>
+            <FileText style={{ width: '24px', height: '24px' }} />
           </div>
         </div>
 
-        <div className="saas-card p-5 bg-white border border-slate-200/80 flex items-center justify-between">
+        <div className={styles.metricCard}>
           <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Bank Soal Tersimpan</p>
-            <p className="text-2xl font-extrabold text-slate-900 mt-1">
+            <p className={styles.metricLabel}>Bank Soal</p>
+            <p className={styles.metricValue}>
               {stats.totalQuestions} 
-              <span className="text-xs font-semibold text-slate-400">
-                {user?.plan === 'FREE' ? ' / 15 Soal (Free)' : user?.plan === 'PERSONAL' ? ' / 100 Soal' : ' / ∞ (Pro)'}
+              <span className={styles.metricLimit}>
+                {user?.plan === 'FREE' ? '/ 15 (Free)' : user?.plan === 'PERSONAL' ? '/ 100' : '/ ∞ (Pro)'}
               </span>
             </p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 text-purple-600 flex items-center justify-center">
-            <HelpCircle className="w-5 h-5" />
+          <div className={styles.metricIconBox}>
+            <HelpCircle style={{ width: '24px', height: '24px' }} />
           </div>
         </div>
 
-        <div className="saas-card p-5 bg-white border border-slate-200/80 flex items-center justify-between">
+        <div className={styles.metricCard}>
           <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Peserta Ujian</p>
-            <p className="text-2xl font-extrabold text-slate-900 mt-1">{stats.totalParticipants}</p>
+            <p className={styles.metricLabel}>Total Siswa</p>
+            <p className={styles.metricValue}>{stats.totalParticipants}</p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center">
-            <Users className="w-5 h-5" />
+          <div className={styles.metricIconBox}>
+            <Users style={{ width: '24px', height: '24px' }} />
           </div>
         </div>
 
-        <div className="saas-card p-5 bg-white border border-slate-200/80 flex items-center justify-between">
+        <div className={styles.metricCard}>
           <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Nilai Rata-rata Murni</p>
-            <p className="text-2xl font-extrabold text-slate-900 mt-1">{stats.averageScore}</p>
+            <p className={styles.metricLabel}>Rata-Rata Nilai</p>
+            <p className={styles.metricValue}>{stats.averageScore}</p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center">
-            <BarChart2 className="w-5 h-5" />
+          <div className={styles.metricIconBox}>
+            <BarChart2 style={{ width: '24px', height: '24px' }} />
           </div>
         </div>
       </div>
 
-      {/* Quick Access Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Recent Ujian & Quick Actions */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="saas-card p-6 bg-white border border-slate-200/80 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-indigo-600" /> Ujian Aktif & Dipublikasikan
-              </h2>
-              <Link to="/exam-builder" className="text-xs text-indigo-600 hover:text-indigo-700 flex items-center gap-1 font-bold">
-                Lihat Semua Ujian <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
+      {/* 4. Quick Access Grid & AI Sidebar */}
+      <div className={styles.contentLayout}>
+        
+        {/* Left Column: Recent Exams */}
+        <div className={styles.sectionCard}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>
+              <Clock style={{ width: '16px', height: '16px', color: 'var(--theme-primary, #059669)' }} /> Ujian Aktif & Siap Diakses
+            </h2>
+            <Link to="/exam-builder" className={styles.sectionActionLink}>
+              <span>Kelola Semua Ujian</span>
+              <ArrowRight style={{ width: '14px', height: '14px' }} />
+            </Link>
+          </div>
 
-            <div className="space-y-2.5">
-              {exams.length === 0 ? (
-                <div className="p-8 text-center border border-dashed border-slate-200 rounded-xl text-slate-500 text-xs">
-                  Belum ada ujian yang dibuat. Klik tombol <strong>Buat Ujian Baru</strong> di atas untuk memulai.
+          <div className={styles.examList}>
+            {exams.length === 0 ? (
+              <div className={styles.emptyExamsState}>
+                <p style={{ margin: 0, fontWeight: 800, color: 'var(--theme-primary-dark, #064E3B)', fontSize: '13px' }}>Belum ada paket ujian yang diterbitkan.</p>
+                <p style={{ margin: 0, fontSize: '11px', color: 'var(--theme-text-muted, #047857)' }}>Klik tombol <strong>Buat Ujian Baru</strong> atau gunakan Generator Soal untuk meracik soal.</p>
+              </div>
+            ) : (
+              exams.map((e) => (
+                <div key={e.id} className={styles.examRow}>
+                  <div className={styles.examInfo}>
+                    <div className={styles.examTitleRow}>
+                      <span className={styles.examTitle}>{e.title}</span>
+                      <span className={styles.badgeActive}>AKTIF</span>
+                    </div>
+                    <p className={styles.examMeta}>
+                      Kode Akses: <code className={styles.examCodeSnippet}>{e.code}</code> • {e.durationMinutes} Menit • {e.questionsCount} Soal
+                    </p>
+                  </div>
+                  
+                  <div className={styles.examActions}>
+                    <Link
+                      to={`/live-monitor/${e.id}`}
+                      className={styles.btnMonitor}
+                      title="Monitor Live Peserta"
+                    >
+                      <Activity style={{ width: '14px', height: '14px' }} />
+                      <span>Monitor Live</span>
+                    </Link>
+
+                    <button
+                      onClick={() => setQrModalExam(e)}
+                      className={styles.iconBtnAction}
+                      title="Tampilkan QR Code Ujian"
+                    >
+                      <QrCode style={{ width: '16px', height: '16px' }} />
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/exam-room/${e.code}`);
+                        showToast('Link ujian berhasil disalin ke clipboard!', 'success');
+                      }}
+                      className={styles.iconBtnAction}
+                      title="Salin Link Ujian"
+                    >
+                      <Copy style={{ width: '16px', height: '16px' }} />
+                    </button>
+
+                    <Link
+                      to={`/exam-room/${e.code}`}
+                      className={styles.btnOpenExam}
+                    >
+                      Buka Ujian
+                    </Link>
+
+                    <button
+                      onClick={() => handleDeleteExam(e.id)}
+                      className={styles.btnDeleteExam}
+                      title="Hapus Ujian"
+                    >
+                      <Trash2 style={{ width: '16px', height: '16px' }} />
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                exams.map((e) => (
-                  <div key={e.id} className="p-4 rounded-xl bg-slate-50/70 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-300 transition-all">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-900">{e.title}</span>
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold">
-                          DIPUBLIKASI
+              ))
+            )}
+          </div>
+        </div>
+
+      </div>
+
+      {/* 5. Floating Kritik, Saran & Penilaian Modal (Only shown once if user hasn't submitted yet) */}
+      {!hasSubmittedFeedback && myFeedbacks.length === 0 && (
+        <>
+          {/* Floating Action Button on the Right */}
+          <button
+            type="button"
+            onClick={() => setShowFeedbackModal(true)}
+            style={{
+              position: 'fixed',
+              bottom: '2.5rem',
+              right: '2rem',
+              zIndex: 40,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.625rem',
+              padding: '0.85rem 1.25rem',
+              borderRadius: '9999px',
+              background: 'linear-gradient(135deg, var(--theme-primary-dark, #064E3B), var(--theme-primary, #10B981))',
+              color: '#FFFFFF',
+              boxShadow: '0 10px 25px -4px rgba(16, 185, 129, 0.45), 0 4px 6px -2px rgba(0, 0, 0, 0.1)',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              cursor: 'pointer',
+              fontWeight: 800,
+              fontSize: '13px',
+              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px) scale(1.03)')}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0) scale(1)')}
+            title="Beri Kritik, Saran & Penilaian"
+          >
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <MessageSquare style={{ width: '17px', height: '17px', fill: 'currentColor' }} />
+              <span style={{ position: 'absolute', top: '-4px', right: '-4px', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#F59E0B' }} />
+            </div>
+            <span>Kritik & Saran</span>
+          </button>
+
+          {/* Feedback Modal */}
+          {showFeedbackModal && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 60,
+                background: 'rgba(6, 78, 59, 0.55)',
+                backdropFilter: 'blur(5px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '1rem',
+                animation: 'fadeIn 0.15s ease'
+              }}
+            >
+              <div
+                style={{
+                  background: '#FFFFFF',
+                  borderRadius: '24px',
+                  maxWidth: '540px',
+                  width: '100%',
+                  padding: '1.75rem',
+                  boxShadow: '0 25px 50px -12px rgba(6, 78, 59, 0.25)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1.25rem',
+                  border: '1.5px solid var(--theme-border, #A7F3D0)',
+                  maxHeight: '90vh',
+                  overflowY: 'auto'
+                }}
+              >
+                {/* Modal Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--theme-mint-light, #ECFDF5)', paddingBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '0.2rem 0.6rem', borderRadius: '9999px', background: 'var(--theme-mint-light, #ECFDF5)', color: 'var(--theme-primary-dark, #064E3B)', fontSize: '10px', fontWeight: 800, border: '1px solid var(--theme-border, #A7F3D0)', alignSelf: 'flex-start' }}>
+                      <MessageSquare style={{ width: '12px', height: '12px', color: 'var(--theme-primary, #059669)' }} />
+                      Suara Pengguna
+                    </div>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 900, color: 'var(--theme-primary-dark, #064E3B)' }}>
+                      Kritik, Saran & Penilaian
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '11px', color: 'var(--theme-text-muted, #047857)', fontWeight: 500 }}>
+                      Satu masukan dari Anda sangat berarti untuk penyempurnaan platform Examigo.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDismissFeedbackModal}
+                    style={{
+                      width: '30px',
+                      height: '30px',
+                      borderRadius: '50%',
+                      background: 'var(--theme-mint-light, #ECFDF5)',
+                      border: 'none',
+                      color: 'var(--theme-primary-dark, #064E3B)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '13px',
+                      fontWeight: 800,
+                      flexShrink: 0
+                    }}
+                  >
+                    <X style={{ width: '16px', height: '16px' }} />
+                  </button>
+                </div>
+
+                {/* Feedback Form */}
+                <form onSubmit={handleSubmitFeedback} style={{ display: 'flex', flexDirection: 'column', gap: '1.125rem' }}>
+                  
+                  {/* Rating Stars Selector */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--theme-primary-dark, #064E3B)' }}>
+                      Penilaian / Rating Anda:
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: '0.2rem' }} onMouseLeave={() => setHoverRating(0)}>
+                        {[1, 2, 3, 4, 5].map((starNum) => {
+                          const isFilled = (hoverRating || feedbackRating) >= starNum;
+                          return (
+                            <button
+                              key={starNum}
+                              type="button"
+                              onClick={() => setFeedbackRating(starNum)}
+                              onMouseEnter={() => setHoverRating(starNum)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '3px',
+                                transition: 'transform 0.15s ease'
+                              }}
+                              onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(1.2)')}
+                              onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+                              title={`${starNum} Bintang`}
+                            >
+                              <Star
+                                style={{
+                                  width: '26px',
+                                  height: '26px',
+                                  fill: isFilled ? '#F59E0B' : 'transparent',
+                                  color: isFilled ? '#F59E0B' : '#CBD5E1',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--theme-primary-dark, #064E3B)' }}>
+                        {feedbackRating === 5 && 'Sempurna / Sangat Puas'}
+                        {feedbackRating === 4 && 'Puas & Bermanfaat'}
+                        {feedbackRating === 3 && 'Cukup Baik'}
+                        {feedbackRating === 2 && 'Perlu Ditingkatkan'}
+                        {feedbackRating === 1 && 'Kurang Memuaskan'}
+                      </span>
+                    </div>
+
+                    {/* Notice for 5 Star Reviews */}
+                    {feedbackRating === 5 && (
+                      <div style={{
+                        marginTop: '0.25rem',
+                        padding: '0.625rem 0.875rem',
+                        borderRadius: '12px',
+                        background: 'var(--theme-mint-light, #ECFDF5)',
+                        border: '1px solid var(--theme-border, #A7F3D0)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontSize: '11px',
+                        color: 'var(--theme-primary-dark, #064E3B)',
+                        fontWeight: 600
+                      }}>
+                        <Sparkles style={{ width: '15px', height: '15px', color: 'var(--theme-primary, #059669)', flexShrink: 0 }} />
+                        <span>
+                          <strong style={{ fontWeight: 800 }}>Kesempatan Tampil di Landing Page:</strong> Ulasan bintang 5 Anda berkesempatan tampil di halaman depan Examigo.
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-500 font-medium">
-                        Kode Akses: <code className="text-indigo-700 font-mono font-bold">{e.code}</code> • Durasi: {e.durationMinutes} Menit • {e.questionsCount} Soal
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Link
-                        to={`/live-monitor/${e.id}`}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center gap-1.5 border border-emerald-200 transition-colors"
-                        title="Monitor Live Peserta"
-                      >
-                        <Activity className="w-3.5 h-3.5 animate-pulse" /> Monitor Live
-                      </Link>
-                      <button
-                        onClick={() => setQrModalExam(e)}
-                        className="p-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors shadow-sm"
-                        title="Tampilkan QR Code Ujian"
-                      >
-                        <QrCode className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(`${window.location.origin}/exam-room/${e.code}`);
-                          showToast('Link ujian berhasil disalin ke clipboard!', 'success');
-                        }}
-                        className="p-1.5 rounded-lg bg-white hover:bg-slate-100 text-indigo-600 border border-slate-200 transition-colors shadow-sm"
-                        title="Salin Link Ujian"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </button>
-                      <Link
-                        to={`/exam-room/${e.code}`}
-                        className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-colors"
-                      >
-                        Buka Ujian
-                      </Link>
-                      <button
-                        onClick={() => handleDeleteExam(e.id)}
-                        className="p-1.5 rounded-lg bg-white hover:bg-red-50 text-slate-400 hover:text-red-600 border border-slate-200 hover:border-red-200 transition-colors shadow-sm"
-                        title="Hapus Ujian"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    )}
+                  </div>
+
+                  {/* Category Selector */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--theme-primary-dark, #064E3B)' }}>
+                      Kategori Masukan:
+                    </label>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {[
+                        { id: 'REVIEW', label: 'Penilaian & Ulasan', icon: Star },
+                        { id: 'SUGGESTION', label: 'Saran Fitur', icon: Lightbulb },
+                        { id: 'CRITIQUE', label: 'Kritik & Masukan', icon: MessageSquare },
+                      ].map((cat) => {
+                        const IconComp = cat.icon;
+                        const isSelected = feedbackCategory === cat.id;
+                        return (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => setFeedbackCategory(cat.id as any)}
+                            style={{
+                              padding: '0.45rem 0.85rem',
+                              borderRadius: '10px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              transition: 'all 0.15s ease',
+                              border: isSelected
+                                ? '1.5px solid var(--theme-primary, #059669)'
+                                : '1px solid var(--theme-border, #A7F3D0)',
+                              background: isSelected
+                                ? 'var(--theme-mint-light, #ECFDF5)'
+                                : '#FFFFFF',
+                              color: isSelected
+                                ? 'var(--theme-primary-dark, #064E3B)'
+                                : 'var(--theme-text-muted, #047857)',
+                            }}
+                          >
+                            <IconComp style={{ width: '13px', height: '13px', color: isSelected ? 'var(--theme-primary, #059669)' : '#64748B', flexShrink: 0 }} />
+                            <span>{cat.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
 
-        {/* Right 1 Col: AI Capabilities */}
-        <div className="saas-card p-6 bg-white border border-slate-200/80 space-y-4">
-          <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-100">
-            <Sparkles className="w-4 h-4 text-indigo-600" /> Fitur AI Examigo
-          </h2>
+                  {/* Message Textarea */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--theme-primary-dark, #064E3B)' }}>
+                      Pesan Masukan / Kritik & Saran:
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={feedbackMessage}
+                      onChange={(e) => setFeedbackMessage(e.target.value)}
+                      placeholder={
+                        feedbackCategory === 'REVIEW'
+                          ? 'Ceritakan pengalaman Anda menggunakan Examigo...'
+                          : feedbackCategory === 'SUGGESTION'
+                          ? 'Sampaikan ide fitur baru yang Anda harapkan ada...'
+                          : 'Sampaikan kendala atau kritik konstruktif untuk kami...'
+                      }
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        borderRadius: '12px',
+                        border: '1.5px solid var(--theme-border, #A7F3D0)',
+                        fontSize: '12px',
+                        color: 'var(--theme-primary-dark, #064E3B)',
+                        outline: 'none',
+                        fontFamily: 'inherit',
+                        resize: 'vertical',
+                        background: '#FFFFFF',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
 
-          <div className="space-y-3 text-xs text-slate-700">
-            <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200/80 flex items-start gap-3">
-              <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-slate-900">Upload Dokumen Materi</p>
-                <p className="text-slate-500 font-medium">Mendukung format PDF, DOCX, PPTX, & TXT.</p>
+                  {/* Submit Button */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', paddingTop: '0.25rem' }}>
+                    <button
+                      type="button"
+                      onClick={handleDismissFeedbackModal}
+                      style={{
+                        padding: '0.625rem 1.25rem',
+                        borderRadius: '12px',
+                        background: '#F1F5F9',
+                        color: '#475569',
+                        border: 'none',
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmittingFeedback}
+                      style={{
+                        padding: '0.625rem 1.5rem',
+                        borderRadius: '12px',
+                        background: 'var(--theme-primary, #059669)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        fontSize: '12px',
+                        fontWeight: 900,
+                        cursor: isSubmittingFeedback ? 'not-allowed' : 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)',
+                        opacity: isSubmittingFeedback ? 0.7 : 1,
+                      }}
+                    >
+                      <Send style={{ width: '13px', height: '13px' }} />
+                      <span>{isSubmittingFeedback ? 'Mengirim...' : 'Kirim Masukan'}</span>
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
+          )}
+        </>
+      )}
 
-            <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200/80 flex items-start gap-3">
-              <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-slate-900">Kustomisasi Tipe & Kesulitan</p>
-                <p className="text-slate-500 font-medium">Generate Pilihan Ganda, Essay, Benar/Salah, & Isian.</p>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200/80 flex items-start gap-3">
-              <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-slate-900">Auto Grading & Analitik</p>
-                <p className="text-slate-500 font-medium">Koreksi otomatis soal objektif dan analisis grafik nilai murni.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Live Monitoring Modal */}
+      {/* 6. Live Monitoring Modal */}
       {activeMonitoringExam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setActiveMonitoringExam(null)} />
-          <div className="relative w-full max-w-4xl p-6 rounded-2xl bg-white border border-slate-200 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto z-10 animate-fade-in-fast">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className={styles.modalBackdrop}>
+          <div className={styles.modalWindow} style={{ maxWidth: '800px', width: '100%' }}>
+            <div className={styles.modalHeader}>
               <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                <h3 className={styles.modalTitle}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'var(--theme-primary, #10B981)', display: 'inline-block' }} />
                   Live Monitoring: {activeMonitoringExam.title}
                 </h3>
-                <p className="text-[11px] text-slate-500 font-medium">Kode Akses: {activeMonitoringExam.code} • Refresh otomatis tiap 5 detik</p>
+                <p style={{ margin: 0, fontSize: '11px', color: 'var(--theme-primary-dark, #065F46)', fontWeight: 600 }}>Kode Akses: {activeMonitoringExam.code} • Refresh otomatis tiap 5 detik</p>
               </div>
               <button
                 onClick={() => setActiveMonitoringExam(null)}
-                className="p-1.5 rounded-lg bg-slate-100 text-slate-500 hover:text-slate-900"
+                className={styles.closeModalBtn}
               >
-                <X className="w-4 h-4" />
+                ✕
               </button>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider bg-slate-50 text-[10px]">
-                    <th className="py-2.5 px-3">Nama Peserta</th>
-                    <th className="py-2.5 px-3">Email</th>
-                    <th className="py-2.5 px-3">Progres</th>
-                    <th className="py-2.5 px-3">Kecurangan</th>
-                    <th className="py-2.5 px-3">Status</th>
-                    <th className="py-2.5 px-3 text-right">Nilai Akhir</th>
+                  <tr style={{ borderBottom: '2px solid var(--theme-border, #A7F3D0)', backgroundColor: 'var(--theme-mint-light, #ECFDF5)', color: 'var(--theme-primary-dark, #064E3B)', fontWeight: 800, fontSize: '11px', textTransform: 'uppercase' }}>
+                    <th style={{ padding: '0.75rem' }}>Nama Peserta</th>
+                    <th style={{ padding: '0.75rem' }}>Email</th>
+                    <th style={{ padding: '0.75rem' }}>Progres</th>
+                    <th style={{ padding: '0.75rem' }}>Kecurangan</th>
+                    <th style={{ padding: '0.75rem' }}>Status</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Nilai Akhir</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody>
                   {monitoringParticipants.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-500 italic">
+                      <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--theme-text-muted, #047857)', fontStyle: 'italic' }}>
                         Belum ada peserta yang bergabung di ujian ini.
                       </td>
                     </tr>
                   ) : (
                     monitoringParticipants.map((p) => (
-                      <tr key={p.id} className="text-slate-700 hover:bg-slate-50/70">
-                        <td className="py-3 px-3 font-bold text-slate-900">{p.studentName}</td>
-                        <td className="py-3 px-3 font-mono text-[11px] text-slate-500">{p.studentEmail}</td>
-                        <td className="py-3 px-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-20 bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                              <div className="bg-indigo-600 h-1.5 rounded-full" style={{ width: `${p.progress}%` }}></div>
+                      <tr key={p.id} style={{ borderBottom: '1px solid var(--theme-mint-light, #ECFDF5)', color: 'var(--theme-primary-dark, #064E3B)' }}>
+                        <td style={{ padding: '0.75rem', fontWeight: 800 }}>{p.studentName}</td>
+                        <td style={{ padding: '0.75rem', color: 'var(--theme-text-muted, #047857)', fontFamily: 'monospace' }}>
+                          {p.studentEmail && !p.studentEmail.includes('@student.examigo.id') ? p.studentEmail : '-'}
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div style={{ width: '80px', height: '6px', borderRadius: '9999px', backgroundColor: 'var(--theme-mint-subtle, #D1FAE5)', overflow: 'hidden' }}>
+                              <div style={{ width: `${p.progress}%`, height: '100%', backgroundColor: 'var(--theme-mint, #059669)' }} />
                             </div>
-                            <span className="font-semibold text-slate-700">{p.progress}%</span>
+                            <span style={{ fontWeight: 800, fontSize: '11px' }}>{p.progress}%</span>
                           </div>
                         </td>
-                        <td className="py-3 px-3">
+                        <td style={{ padding: '0.75rem' }}>
                           {p.cheatingCount > 0 ? (
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              p.cheatingCount >= 3 ? 'bg-red-100 text-red-700 border border-red-200 animate-pulse' : 'bg-amber-100 text-amber-700 border border-amber-200'
-                            }`}>
+                            <span style={{ padding: '0.2rem 0.5rem', borderRadius: '9999px', fontSize: '10px', fontWeight: 800, backgroundColor: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' }}>
                               {p.cheatingCount} Pelanggaran
                             </span>
                           ) : (
-                            <span className="text-slate-400">-</span>
+                            <span style={{ color: 'var(--theme-border, #A7F3D0)' }}>-</span>
                           )}
                         </td>
-                        <td className="py-3 px-3">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            p.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                          }`}>
+                        <td style={{ padding: '0.75rem' }}>
+                          <span style={{ padding: '0.2rem 0.5rem', borderRadius: '9999px', fontSize: '10px', fontWeight: 800, backgroundColor: p.status === 'COMPLETED' ? 'var(--theme-mint-light, #ECFDF5)' : 'var(--theme-bg, #F0FDF4)', color: p.status === 'COMPLETED' ? 'var(--theme-primary, #059669)' : 'var(--theme-primary-dark, #064E3B)', border: '1px solid var(--theme-border, #A7F3D0)' }}>
                             {p.status === 'COMPLETED' ? 'Selesai' : 'Mengerjakan'}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-right font-extrabold text-slate-900">
+                        <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 900 }}>
                           {p.status === 'COMPLETED' ? (
-                            <span className={p.isPassed ? 'text-emerald-600' : 'text-red-600'}>
+                            <span style={{ color: p.isPassed ? 'var(--theme-primary, #059669)' : '#DC2626' }}>
                               {p.score} ({p.isPassed ? 'Lulus' : 'Gagal'})
                             </span>
                           ) : (
-                            <span className="text-slate-400">-</span>
+                            <span style={{ color: 'var(--theme-border, #A7F3D0)' }}>-</span>
                           )}
                         </td>
                       </tr>
@@ -429,48 +1081,36 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* QR Code Modal */}
+      {/* 6. QR Code Modal */}
       {qrModalExam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setQrModalExam(null)} />
-          <div className="relative w-full max-w-sm p-6 rounded-2xl bg-white border border-slate-200 shadow-xl flex flex-col items-center gap-4 z-10 animate-fade-in-fast text-center">
-            <div className="w-full flex items-center justify-between border-b border-slate-100 pb-2.5 text-left">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <QrCode className="w-4 h-4 text-indigo-600" /> QR Code Akses Ujian
+        <div className={styles.modalBackdrop}>
+          <div className={styles.modalWindow} style={{ maxWidth: '420px', width: '100%', textAlign: 'center', alignItems: 'center' }}>
+            <div className={styles.modalHeader} style={{ width: '100%' }}>
+              <h3 className={styles.modalTitle}>
+                <QrCode style={{ width: '16px', height: '16px', color: 'var(--theme-primary, #059669)' }} /> QR Code Akses Ujian
               </h3>
               <button
                 onClick={() => setQrModalExam(null)}
-                className="p-1 rounded-lg bg-slate-100 text-slate-500 hover:text-slate-900"
+                className={styles.closeModalBtn}
               >
-                <X className="w-4 h-4" />
+                ✕
               </button>
             </div>
 
-            <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-900">{qrModalExam.title}</p>
-              <p className="text-[11px] text-slate-500">Kode Akses: <code className="text-indigo-700 font-mono font-bold">{qrModalExam.code}</code></p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '0.5rem' }}>
+              <strong style={{ fontSize: '13px', color: 'var(--theme-primary-dark, #064E3B)' }}>{qrModalExam.title}</strong>
+              <span style={{ fontSize: '11px', color: 'var(--theme-text-muted, #047857)' }}>Kode Akses: <code style={{ color: 'var(--theme-primary, #059669)', fontWeight: 900 }}>{qrModalExam.code}</code></span>
             </div>
 
-            <div className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(`${window.location.origin}/exam-room/${qrModalExam.code}`)}`}
-                alt="QR Code Ujian"
-                className="w-[180px] h-[180px]"
-              />
-            </div>
-
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin}/exam-room/${qrModalExam.code}`);
-                showToast('Link ujian berhasil disalin ke clipboard!', 'success');
-              }}
-              className="saas-button-primary w-full py-2.5 text-xs font-bold"
-            >
-              Salin Link Ujian
-            </button>
+            <DynamicQRCode
+              value={`${window.location.origin}/exam-room/${qrModalExam.code}`}
+              size={190}
+              showActions={true}
+            />
           </div>
         </div>
       )}
+
     </div>
   );
 }

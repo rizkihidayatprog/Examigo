@@ -130,7 +130,7 @@ export default function AdminCouponsPage() {
         </div>
         <button 
           onClick={handleOpenCreate}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors shadow-lg shadow-indigo-500/20"
+          className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors shadow-lg shadow-indigo-500/20"
         >
           <Plus className="w-4 h-4" /> Tambah Kupon
         </button>
@@ -160,10 +160,10 @@ export default function AdminCouponsPage() {
                 </tr>
               ) : (
                 coupons.map((coupon) => (
-                  <tr key={coupon.id} className="hover:bg-slate-800/30 transition-colors">
+                  <tr key={coupon.id} className="hover:bg-edu-navyLight/30 transition-colors">
                     <td className="px-6 py-4">
                       <div className="inline-flex items-center gap-2 bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-lg">
-                        <Tag className="w-3.5 h-3.5 text-indigo-400" />
+                        <Tag className="w-3.5 h-3.5 text-slate-400" />
                         <span className="font-mono font-bold text-slate-200 tracking-wider">{coupon.code}</span>
                       </div>
                     </td>
@@ -176,7 +176,7 @@ export default function AdminCouponsPage() {
                       </div>
                       {coupon.maxUses && (
                         <div className="w-full bg-slate-800 rounded-full h-1.5 mt-1 max-w-[100px]">
-                          <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${Math.min(100, (coupon.usedCount / coupon.maxUses) * 100)}%` }}></div>
+                          <div className="bg-slate-500 h-1.5 rounded-full" style={{ width: `${Math.min(100, (coupon.usedCount / coupon.maxUses) * 100)}%` }}></div>
                         </div>
                       )}
                     </td>
@@ -210,7 +210,7 @@ export default function AdminCouponsPage() {
                         </button>
                         <button 
                           onClick={() => handleOpenEdit(coupon)}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-400 transition-colors"
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-600 hover:text-white text-slate-400 transition-colors"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
@@ -247,7 +247,7 @@ export default function AdminCouponsPage() {
                     <button
                       type="button"
                       onClick={generateRandomCode}
-                      className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
+                      className="text-xs font-bold text-slate-400 hover:text-slate-300 flex items-center gap-1 transition-colors"
                     >
                       <Wand2 className="w-3 h-3" /> Buat Otomatis
                     </button>
@@ -259,7 +259,7 @@ export default function AdminCouponsPage() {
                   disabled={!!editingId} // Code cant be edited once created
                   value={form.code}
                   onChange={(e) => setForm({...form, code: e.target.value.toUpperCase()})}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono tracking-wider disabled:opacity-50"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-slate-500 font-mono tracking-wider disabled:opacity-50"
                   placeholder="MISAL: DISKON20"
                 />
               </div>
@@ -274,7 +274,7 @@ export default function AdminCouponsPage() {
                     required
                     value={form.discountPercent}
                     onChange={(e) => setForm({...form, discountPercent: Number(e.target.value)})}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-slate-500"
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">%</span>
                 </div>
@@ -287,7 +287,7 @@ export default function AdminCouponsPage() {
                   min="0"
                   value={form.maxUses || ''}
                   onChange={(e) => setForm({...form, maxUses: Number(e.target.value)})}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-slate-500"
                   placeholder="Contoh: 100"
                 />
               </div>
@@ -298,7 +298,7 @@ export default function AdminCouponsPage() {
                   type="datetime-local"
                   value={form.validUntil}
                   onChange={(e) => setForm({...form, validUntil: e.target.value})}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-slate-500"
                 />
               </div>
 
@@ -313,7 +313,7 @@ export default function AdminCouponsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 rounded-xl bg-slate-600 hover:bg-slate-700 text-white font-bold text-sm transition-colors flex items-center justify-center gap-2"
                   disabled={saving}
                 >
                   {saving ? 'Menyimpan...' : <><CheckCircle2 className="w-4 h-4" /> Simpan</>}

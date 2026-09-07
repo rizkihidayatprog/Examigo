@@ -1,10 +1,34 @@
-import React, { useEffect, useState } from 'react';
-import { Users, Layers, Sparkles, CreditCard, Activity, ArrowUpRight, TrendingUp, ShieldCheck, Database, Zap, Clock } from 'lucide-react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Users, Layers, Sparkles, CreditCard, Activity, TrendingUp, ShieldCheck, Database, Zap, Clock, RefreshCw } from 'lucide-react';
 import { api } from '../../lib/auth';
+
+interface HealthData {
+  timestamp: string;
+  apiGateway: { status: string; uptimePct: number; responseMs: number; uptimeSeconds: number };
+  database: { status: string; latencyMs: number; loadPct: number; heapUsedMB: number; heapTotalMB: number; memLoadPct: number };
+  geminiAI: { status: string; latencyMs: number | null };
+}
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [health, setHealth] = useState<HealthData | null>(null);
+  const [healthLoading, setHealthLoading] = useState(true);
+  const [healthLastUpdated, setHealthLastUpdated] = useState<Date | null>(null);
+
+  const fetchHealth = useCallback(() => {
+    setHealthLoading(true);
+    api('/admin/health')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setHealth(data.data);
+          setHealthLastUpdated(new Date());
+        }
+      })
+      .catch(() => {})
+      .finally(() => setHealthLoading(false));
+  }, []);
 
   useEffect(() => {
     api('/admin/stats')
@@ -16,6 +40,12 @@ export default function AdminDashboardPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetchHealth();
+    const interval = setInterval(fetchHealth, 30000); // auto-refresh every 30s
+    return () => clearInterval(interval);
+  }, [fetchHealth]);
 
   if (loading) {
     return (
@@ -52,7 +82,7 @@ export default function AdminDashboardPage() {
           <p className="text-slate-400 font-medium text-sm">Pantau aktivitas, metrik, dan kesehatan sistem Examigo secara real-time.</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="px-4 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-sm font-bold flex items-center gap-2">
+          <div className="px-4 py-2 rounded-xl bg-slate-500/10 border border-slate-500/20 text-slate-400 text-sm font-bold flex items-center gap-2">
             <Activity className="w-4 h-4 animate-pulse" />
             Live Monitoring Active
           </div>
@@ -79,10 +109,10 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Total Exams */}
-        <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800/60 shadow-lg relative overflow-hidden group hover:border-indigo-500/30 transition-all">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-bl-full -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
+        <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800/60 shadow-lg relative overflow-hidden group hover:border-slate-500/30 transition-all">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-slate-500/5 rounded-bl-full -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
           <div className="flex justify-between items-start mb-4 relative">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-2xl bg-slate-500/10 text-slate-400 flex items-center justify-center">
               <Layers className="w-6 h-6" />
             </div>
             <span className="inline-flex items-center gap-1 text-emerald-400 text-xs font-bold bg-emerald-400/10 px-2 py-1 rounded-lg">
@@ -96,10 +126,10 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Global AI Usage */}
-        <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800/60 shadow-lg relative overflow-hidden group hover:border-purple-500/30 transition-all">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-bl-full -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
+        <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800/60 shadow-lg relative overflow-hidden group hover:border-slate-500/30 transition-all">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-slate-500/5 rounded-bl-full -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
           <div className="flex justify-between items-start mb-4 relative">
-            <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-2xl bg-slate-500/10 text-slate-400 flex items-center justify-center">
               <Sparkles className="w-6 h-6" />
             </div>
             <span className="inline-flex items-center gap-1 text-slate-400 text-xs font-bold bg-slate-800 px-2 py-1 rounded-lg">
@@ -107,7 +137,7 @@ export default function AdminDashboardPage() {
             </span>
           </div>
           <div className="relative">
-            <p className="text-sm font-semibold text-slate-400 mb-1">Total Kuota AI Terpakai</p>
+            <p className="text-sm font-semibold text-slate-400 mb-1">Total Kuota Soal Terpakai</p>
             <h3 className="text-3xl font-black text-white">{stats?.totalAiUsage || 0} <span className="text-sm text-slate-500 font-medium">tokens</span></h3>
           </div>
         </div>
@@ -131,60 +161,158 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* System Health / Status */}
+        {/* System Health / Status — REAL-TIME */}
         <div className="lg:col-span-1 p-6 rounded-3xl bg-slate-900 border border-slate-800/60 shadow-lg">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500">
-              <ShieldCheck className="w-5 h-5" />
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <h3 className="font-bold text-white text-lg">System Health</h3>
             </div>
-            <h3 className="font-bold text-white text-lg">System Health</h3>
+            <button
+              onClick={fetchHealth}
+              disabled={healthLoading}
+              className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-all disabled:opacity-40"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${healthLoading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
-          <div className="space-y-5">
-            <div>
-              <div className="flex justify-between items-end mb-2">
-                <div className="flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-slate-400" />
-                  <span className="text-sm font-semibold text-slate-300">API Gateway</span>
-                </div>
-                <span className="text-xs font-bold text-emerald-400">99.9% Uptime</span>
-              </div>
-              <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                <div className="bg-emerald-500 h-full rounded-full" style={{ width: '100%' }}></div>
-              </div>
-            </div>
 
-            <div>
-              <div className="flex justify-between items-end mb-2">
-                <div className="flex items-center gap-2">
-                  <Database className="w-4 h-4 text-slate-400" />
-                  <span className="text-sm font-semibold text-slate-300">Database Load</span>
+          {healthLoading && !health ? (
+            <div className="space-y-5">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-4 bg-slate-800 rounded w-3/4 mb-2"></div>
+                  <div className="h-2 bg-slate-800 rounded-full"></div>
                 </div>
-                <span className="text-xs font-bold text-blue-400">Normal (24%)</span>
-              </div>
-              <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                <div className="bg-blue-500 h-full rounded-full" style={{ width: '24%' }}></div>
-              </div>
+              ))}
             </div>
+          ) : (
+            <div className="space-y-5">
+              {/* API Gateway */}
+              {(() => {
+                const uptime = health?.apiGateway.uptimePct ?? 99.9;
+                const respMs = health?.apiGateway.responseMs ?? 0;
+                const color = uptime >= 99 ? 'emerald' : uptime >= 95 ? 'yellow' : 'red';
+                return (
+                  <div>
+                    <div className="flex justify-between items-end mb-2">
+                      <div className="flex items-center gap-2">
+                        <Activity className={`w-4 h-4 text-${color}-400`} />
+                        <span className="text-sm font-semibold text-slate-300">API Gateway</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-xs font-bold text-${color}-400`}>{uptime.toFixed(1)}% Uptime</span>
+                        <span className="text-[10px] text-slate-500 ml-1.5">{respMs}ms</span>
+                      </div>
+                    </div>
+                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className={`bg-${color}-500 h-full rounded-full transition-all duration-700`}
+                        style={{ width: `${uptime}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                );
+              })()}
 
-            <div>
-              <div className="flex justify-between items-end mb-2">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-slate-400" />
-                  <span className="text-sm font-semibold text-slate-300">Gemini AI Service</span>
-                </div>
-                <span className="text-xs font-bold text-emerald-400">Operational</span>
-              </div>
-              <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                <div className="bg-emerald-500 h-full rounded-full" style={{ width: '100%' }}></div>
-              </div>
+              {/* Database */}
+              {(() => {
+                const dbLatency = health?.database.latencyMs ?? 0;
+                // Use latency-based load (bukan heap memory!)
+                const dbLoad = health?.database.loadPct ?? 0;
+                const dbStatus = health?.database.status ?? 'operational';
+                const memPct = health?.database.memLoadPct ?? 0;
+                const heapMB = health?.database.heapUsedMB ?? 0;
+                // Color thresholds based on latency load
+                const color = dbStatus !== 'operational' ? 'red'
+                  : dbLoad < 40 ? 'blue'
+                  : dbLoad < 70 ? 'yellow'
+                  : 'red';
+                const label = dbStatus !== 'operational'
+                  ? (dbStatus === 'degraded' ? 'Lambat' : 'Down')
+                  : dbLoad < 40 ? 'Normal'
+                  : dbLoad < 70 ? 'Elevated'
+                  : 'High';
+                return (
+                  <div>
+                    <div className="flex justify-between items-end mb-2">
+                      <div className="flex items-center gap-2">
+                        <Database className={`w-4 h-4 text-${color}-400`} />
+                        <span className="text-sm font-semibold text-slate-300">Database (MySQL)</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-xs font-bold text-${color}-400`}>{label} ({dbLoad}%)</span>
+                        <span className="text-[10px] text-slate-500 ml-1.5">{dbLatency}ms</span>
+                      </div>
+                    </div>
+                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className={`bg-${color}-500 h-full rounded-full transition-all duration-700`}
+                        style={{ width: `${Math.max(dbLoad, 4)}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-[10px] text-slate-600 mt-1 text-right">
+                      Server RAM: {heapMB}MB heap · {memPct}% terpakai
+                    </p>
+                  </div>
+                );
+              })()}
+
+              {/* Gemini AI */}
+              {(() => {
+                const aiSt = health?.geminiAI.status ?? 'not_configured';
+                const aiMs = health?.geminiAI.latencyMs;
+                const color = aiSt === 'operational' ? 'emerald' : aiSt === 'degraded' ? 'yellow' : 'slate';
+                const label = aiSt === 'operational' ? 'Operational' : aiSt === 'degraded' ? 'Degraded' : 'No API Key';
+                const barWidth = aiSt === 'operational' ? 100 : aiSt === 'degraded' ? 55 : 10;
+                return (
+                  <div>
+                    <div className="flex justify-between items-end mb-2">
+                      <div className="flex items-center gap-2">
+                        <Zap className={`w-4 h-4 text-${color}-400`} />
+                        <span className="text-sm font-semibold text-slate-300">Gemini</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-xs font-bold text-${color}-400`}>{label}</span>
+                        {aiMs !== null && aiMs !== undefined && (
+                          <span className="text-[10px] text-slate-500 ml-1.5">{aiMs}ms</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className={`bg-${color}-500 h-full rounded-full transition-all duration-700`}
+                        style={{ width: `${barWidth}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
-          </div>
-          
-          <div className="mt-8 p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-start gap-3">
-            <Clock className="w-5 h-5 text-indigo-400 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm font-bold text-slate-200">Terakhir disinkronkan</p>
-              <p className="text-xs text-slate-500 mt-0.5">Semua sistem berjalan dengan baik tanpa ada insiden aktif dalam 24 jam terakhir.</p>
+          )}
+
+          <div className="mt-6 p-3 rounded-2xl bg-slate-950 border border-slate-800 flex items-center gap-3">
+            <Clock className="w-4 h-4 text-slate-500 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-slate-300">
+                {healthLastUpdated
+                  ? `Diperbarui: ${healthLastUpdated.toLocaleTimeString('id-ID')}`
+                  : 'Memuat data...'}
+              </p>
+              <p className="text-[10px] text-slate-600 mt-0.5">Auto-refresh setiap 30 detik</p>
+            </div>
+            <div className="ml-auto flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full animate-pulse ${
+                health?.database.status === 'operational' && health?.geminiAI.status === 'operational'
+                  ? 'bg-emerald-500'
+                  : health?.database.status === 'down'
+                  ? 'bg-red-500'
+                  : 'bg-yellow-500'
+              }`}></span>
+              <span className="text-[10px] font-bold text-slate-500">LIVE</span>
             </div>
           </div>
         </div>
@@ -193,7 +321,7 @@ export default function AdminDashboardPage() {
         <div className="lg:col-span-2 p-6 rounded-3xl bg-slate-900 border border-slate-800/60 shadow-lg">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
+              <div className="p-2 bg-slate-500/10 rounded-lg text-slate-400">
                 <Users className="w-5 h-5" />
               </div>
               <h3 className="font-bold text-white text-lg">Demografi & Distribusi Pengguna</h3>
@@ -203,7 +331,7 @@ export default function AdminDashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col items-center justify-center text-center">
               <span className="text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Teachers</span>
-              <span className="text-2xl font-black text-indigo-400 mb-1">{teacherCount}</span>
+              <span className="text-2xl font-black text-slate-400 mb-1">{teacherCount}</span>
               <span className="text-[10px] font-medium text-slate-500">{((teacherCount/totalUsers)*100).toFixed(1)}% dari total</span>
             </div>
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col items-center justify-center text-center">
@@ -213,7 +341,7 @@ export default function AdminDashboardPage() {
             </div>
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col items-center justify-center text-center">
               <span className="text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Admins</span>
-              <span className="text-2xl font-black text-purple-400 mb-1">{adminCount}</span>
+              <span className="text-2xl font-black text-slate-400 mb-1">{adminCount}</span>
               <span className="text-[10px] font-medium text-slate-500">{((adminCount/totalUsers)*100).toFixed(1)}% dari total</span>
             </div>
           </div>
@@ -221,13 +349,13 @@ export default function AdminDashboardPage() {
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-slate-300 mb-3">Komposisi Pengguna Sistem</h4>
             <div className="w-full flex h-4 rounded-full overflow-hidden bg-slate-800">
-              <div className="bg-indigo-500 h-full" style={{ width: `${(teacherCount / totalUsers) * 100}%` }}></div>
+              <div className="bg-slate-500 h-full" style={{ width: `${(teacherCount / totalUsers) * 100}%` }}></div>
               <div className="bg-emerald-500 h-full border-l border-slate-900" style={{ width: `${(studentCount / totalUsers) * 100}%` }}></div>
-              <div className="bg-purple-500 h-full border-l border-slate-900" style={{ width: `${(adminCount / totalUsers) * 100}%` }}></div>
+              <div className="bg-slate-500 h-full border-l border-slate-900" style={{ width: `${(adminCount / totalUsers) * 100}%` }}></div>
             </div>
             <div className="flex gap-4 mt-3">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-indigo-500"></div>
+                <div className="w-3 h-3 rounded-full bg-slate-500"></div>
                 <span className="text-xs text-slate-400">Guru (Pemilik Ujian)</span>
               </div>
               <div className="flex items-center gap-2">
@@ -235,7 +363,7 @@ export default function AdminDashboardPage() {
                 <span className="text-xs text-slate-400">Siswa (Peserta Ujian)</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                <div className="w-3 h-3 rounded-full bg-slate-500"></div>
                 <span className="text-xs text-slate-400">Admin Sistem</span>
               </div>
             </div>

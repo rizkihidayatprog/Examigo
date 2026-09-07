@@ -1,10 +1,12 @@
 # Dependencies
 node_modules/
 
-# Environment variables
+# Environment variables & Local Configurations
 .env
 .env.local
 .env.*.local
+server/cms_config.json
+!server/cms_config.example.json
 
 # Build output
 dist/
@@ -33,3 +35,7 @@ yarn-error.log*
 # OS generated
 .DS_Store
 Thumbs.db
+
+# Agent & Skill tooling
+.agents/
+skills-lock.json

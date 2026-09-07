@@ -39,38 +39,43 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ showToast, dismissToast }}>
       {children}
       {/* Toast Portal/Container */}
-      <div className="fixed top-4 right-4 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none">
+      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none">
         {toasts.map((toast) => {
-          let bgColor = 'bg-slate-900/90 border-slate-800 text-slate-200';
+          let borderColor = 'border-slate-200';
+          let iconBg = 'bg-blue-50 text-blue-600';
           let Icon = Info;
-          let iconColor = 'text-brand-400';
 
           if (toast.type === 'success') {
-            bgColor = 'bg-emerald-950/90 border-emerald-800 text-emerald-100';
+            borderColor = 'border-emerald-200';
+            iconBg = 'bg-emerald-50 text-emerald-600';
             Icon = CheckCircle;
-            iconColor = 'text-emerald-400';
           } else if (toast.type === 'error') {
-            bgColor = 'bg-red-950/90 border-red-800 text-red-100';
+            borderColor = 'border-red-200';
+            iconBg = 'bg-red-50 text-red-600';
             Icon = AlertCircle;
-            iconColor = 'text-red-400';
           } else if (toast.type === 'loading') {
-            bgColor = 'bg-slate-900/90 border-slate-800 text-slate-200';
+            borderColor = 'border-slate-200';
+            iconBg = 'bg-slate-100 text-slate-600 animate-spin';
             Icon = Loader2;
-            iconColor = 'text-brand-400 animate-spin';
           }
 
           return (
             <div
               key={toast.id}
-              className={`p-4 rounded-xl border backdrop-blur-md shadow-glow flex items-start gap-3 pointer-events-auto animate-fade-in transition-all duration-300 ${bgColor}`}
+              className={`p-3.5 rounded-xl border bg-white shadow-lg flex items-start gap-3 pointer-events-auto transition-all duration-200 ${borderColor}`}
             >
-              <Icon className={`w-5 h-5 shrink-0 ${iconColor}`} />
-              <div className="flex-1 text-xs font-medium leading-relaxed">{toast.message}</div>
+              <div className={`p-1 rounded-lg shrink-0 ${iconBg}`}>
+                <Icon className="w-4 h-4" />
+              </div>
+              <div className="flex-1 text-xs font-semibold text-slate-800 leading-relaxed pt-0.5">
+                {toast.message}
+              </div>
               <button
+                type="button"
                 onClick={() => dismissToast(toast.id)}
-                className="text-slate-400 hover:text-white transition-colors shrink-0"
+                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-lg transition-colors shrink-0"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           );

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { Lock, ArrowLeft, KeyRound, CheckCircle2 } from 'lucide-react';
+import { Lock, ArrowLeft, KeyRound, CheckCircle2, Loader2, Eye, EyeOff, ShieldCheck, Sparkles, AlertCircle } from 'lucide-react';
 import ExamigoLogo from '../components/common/ExamigoLogo';
+import SEO from '../components/common/SEO';
+import styles from '../styles/AuthLayout.module.css';
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -10,6 +12,7 @@ export default function ResetPasswordPage() {
 
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -17,11 +20,11 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) {
-      setError('Password minimal 6 karakter.');
+      setError('Kata sandi minimal 6 karakter.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('Konfirmasi password tidak cocok.');
+      setError('Konfirmasi kata sandi tidak cocok.');
       return;
     }
 
@@ -38,7 +41,7 @@ export default function ResetPasswordPage() {
         setSuccess(true);
         setTimeout(() => {
           navigate('/login');
-        }, 2500);
+        }, 2000);
       } else {
         setError(data.message || 'Gagal mengatur ulang kata sandi.');
       }
@@ -50,80 +53,141 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-center items-center p-4 relative overflow-hidden">
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
+    <div className={styles.authScreen}>
+      <SEO title="Atur Ulang Kata Sandi" noindex={true} />
+      {/* 1. Showcase Panel */}
+      <div className={styles.showcasePanel}>
+        <img
+          src="/images/auth/login-showcase.jpg"
+          alt="Examigo Security Showcase"
+          className={styles.showcaseBg}
+        />
+        <div className={styles.showcaseGradientOverlay} />
+        <div className={styles.showcaseGlowSphere} />
 
-      <div className="w-full max-w-md bg-slate-800/90 border border-slate-700/80 rounded-3xl p-8 shadow-2xl backdrop-blur-md relative z-10 space-y-6">
-        <div className="text-center space-y-2">
-          <div className="flex justify-center mb-4">
-            <ExamigoLogo size="lg" />
-          </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">Atur Password Baru</h1>
-          <p className="text-xs text-slate-400 font-medium leading-relaxed">
-            Buat kata sandi baru yang kuat untuk keamanan akun Anda.
-          </p>
-        </div>
-
-        {success ? (
-          <div className="p-5 rounded-2xl bg-emerald-950/40 border border-emerald-800/60 text-center space-y-3 animate-fade-in-fast">
-            <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
-            <h3 className="text-sm font-bold text-white">Password Berhasil Diperbarui!</h3>
-            <p className="text-xs text-slate-300 font-medium">
-              Mengalihkan Anda ke halaman login...
-            </p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-xs font-bold text-slate-300 block mb-2">Kata Sandi Baru</label>
-              <div className="relative">
-                <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
-                <input
-                  type="password"
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Minimal 6 karakter"
-                  className="w-full rounded-xl bg-slate-900/80 border border-slate-700 p-3 pl-10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors font-medium"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-300 block mb-2">Konfirmasi Kata Sandi Baru</label>
-              <div className="relative">
-                <KeyRound className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
-                <input
-                  type="password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Ulangi kata sandi baru"
-                  className="w-full rounded-xl bg-slate-900/80 border border-slate-700 p-3 pl-10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors font-medium"
-                />
-              </div>
-            </div>
-
-            {error && <p className="text-xs text-red-400 font-medium">{error}</p>}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-600/30 disabled:opacity-50"
-            >
-              {loading ? 'Menyimpan...' : 'Simpan Password Baru'}
-            </button>
-          </form>
-        )}
-
-        <div className="pt-4 border-t border-slate-700/60 text-center">
-          <Link
-            to="/login"
-            className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"
+        <div className={styles.showcaseTopContent}>
+          <Link to="/" className="inline-block no-underline">
+            <ExamigoLogo size="md" variant="light" showBadge={true} />
+          </Link>
+          <Link 
+            to="/" 
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 border border-white/25 backdrop-blur-md text-white text-xs font-bold transition-all shadow-sm group cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4" /> Batal & Kembali
+            <ArrowLeft className="w-3.5 h-3.5 text-emerald-300 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Kembali ke Beranda</span>
           </Link>
         </div>
+
+        <div className={styles.showcaseContentFade}>
+          <div className="space-y-3.5 max-w-lg">
+            <h1 className={styles.showcaseHeadline}>
+              Atur Ulang Kata Sandi Akun Anda
+            </h1>
+
+            <p className={styles.showcaseSubtitle}>
+              Pastikan kata sandi baru Anda unik, kuat, dan mudah Anda ingat untuk menjaga keamanan bank soal & data ujian siswa.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Form Panel */}
+      <div className={styles.formPanel}>
+        <div className={styles.formCard}>
+          <div className={styles.formHeader}>
+            <Link to="/" className="inline-block no-underline mb-3">
+              <ExamigoLogo size="lg" showBadge={true} />
+            </Link>
+            <h2 className={styles.formTitle}>Kata Sandi Baru</h2>
+            <p className={styles.formSubtitle}>
+              Buat kata sandi baru yang aman untuk akun Examigo Anda
+            </p>
+          </div>
+
+          {error && (
+            <div className={styles.errorAlert}>
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {success ? (
+            <div className="p-5 rounded-2xl bg-[var(--theme-mint-light,#ECFDF5)] border border-[var(--theme-border,#A7F3D0)] text-center space-y-2.5">
+              <CheckCircle2 className="w-10 h-10 text-[var(--theme-primary,#059669)] mx-auto" />
+              <h3 className="text-sm font-black text-[var(--theme-primary-dark,#064E3B)] m-0">Kata Sandi Berhasil Diubah!</h3>
+              <p className="text-xs text-[var(--theme-text-body,#065F46)] font-semibold leading-relaxed m-0">
+                Kata sandi Anda telah berhasil diperbarui. Mengalihkan ke halaman masuk...
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+              <div className={styles.inputGroup}>
+                <label className={styles.inputLabel}>Kata Sandi Baru (Minimal 6 Karakter)</label>
+                <div className={styles.inputWrapper}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className={styles.inputField}
+                    style={{ paddingRight: '2.5rem' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className={styles.passwordToggleBtn}
+                  >
+                    {showPassword ? <EyeOff style={{ width: '16px', height: '16px' }} /> : <Eye style={{ width: '16px', height: '16px' }} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className={styles.inputGroup}>
+                <label className={styles.inputLabel}>Ulangi Konfirmasi Kata Sandi Baru</label>
+                <div className={styles.inputWrapper}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className={styles.inputField}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className={styles.submitBtn}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 style={{ width: '16px', height: '16px' }} className="animate-spin" /> Menyimpan...
+                  </>
+                ) : (
+                  <>
+                    <KeyRound style={{ width: '16px', height: '16px' }} /> Simpan Kata Sandi Baru
+                  </>
+                )}
+              </button>
+            </form>
+          )}
+
+          <div className={styles.formFooter}>
+            <p className="text-xs text-[var(--theme-primary-dark,#064E3B)] font-semibold m-0">
+              <Link to="/login" className={styles.switchLink}>
+                Kembali ke Halaman Masuk
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        <Link to="/" className={styles.backHomeLink}>
+          <ArrowLeft style={{ width: '13px', height: '13px' }} />
+          <span>Kembali ke Halaman Depan</span>
+        </Link>
       </div>
     </div>
   );

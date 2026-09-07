@@ -1,0 +1,122 @@
+/* ==========================================================================
+   Examigo Modern Vanilla CSS Design System
+   Theme: Emerald Forest / Fresh Mint (Single Unified Modern Green Palette)
+   High-Contrast Educational SaaS Tokens & Lightweight Motion
+   ========================================================================== */
+
+:root {
+  /* Unified Emerald Forest & Fresh Mint Tokens */
+  --theme-primary-dark: #064E3B;     /* Deep Emerald (Teks Utama & Heading) */
+  --theme-primary: #059669;          /* Emerald Base */
+  --theme-primary-hover: #047857;    /* Emerald Hover */
+  --theme-mint: #10B981;             /* Fresh Mint / Brand Accent */
+  --theme-mint-hover: #059669;       /* Mint Darker */
+  --theme-mint-light: #ECFDF5;       /* Soft Mint Surface */
+  --theme-mint-subtle: #D1FAE5;      /* Mint Tint */
+  --theme-lime: #84CC16;             /* Soft Lime Accent */
+  --theme-lime-light: #F7FEE7;       /* Soft Lime Tint */
+
+  /* Text & Surfaces */
+  --theme-text-title: #064E3B;       /* Deep Forest Green for maximum readability */
+  --theme-text-body: #065F46;        /* Forest Slate for body text */
+  --theme-text-muted: #047857;       /* Muted Emerald for subheaders */
+  --theme-text-inverse: #FFFFFF;     /* White text on dark cards */
+  
+  --theme-bg: #F0FDF4;               /* Very soft mint white background */
+  --theme-surface: #FFFFFF;          /* Pure White Card */
+  --theme-surface-subtle: #ECFDF5;   /* Minty White Surface */
+  --theme-border: #A7F3D0;           /* Clean Mint Border */
+  --theme-border-strong: #6EE7B7;    /* Strong Mint Border */
+
+  /* Legacy mappings for seamless compatibility */
+  --edu-navy: var(--theme-primary-dark);
+  --edu-navy-dark: #022C22;
+  --edu-navy-light: var(--theme-primary);
+  --edu-electric: var(--theme-mint);
+  --edu-electric-hover: var(--theme-primary-hover);
+  --edu-electric-light: var(--theme-mint-light);
+  --edu-butter: var(--theme-mint);
+  --edu-butter-hover: var(--theme-primary);
+  --edu-butter-light: var(--theme-mint-light);
+  --edu-sage: var(--theme-mint);
+  --edu-sage-light: var(--theme-mint-light);
+  --edu-bg: var(--theme-bg);
+  --edu-white: var(--theme-surface);
+  --edu-border: var(--theme-border);
+  --edu-border-strong: var(--theme-border-strong);
+
+  /* Typography */
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Elevation Shadows */
+  --shadow-xs: 0 1px 3px rgba(6, 78, 59, 0.04);
+  --shadow-sm: 0 2px 8px -2px rgba(6, 78, 59, 0.06), 0 1px 4px -1px rgba(6, 78, 59, 0.04);
+  --shadow-card: 0 8px 24px -4px rgba(6, 78, 59, 0.08), 0 2px 6px -1px rgba(6, 78, 59, 0.03);
+  --shadow-hover: 0 16px 36px -6px rgba(6, 78, 59, 0.14), 0 4px 12px -2px rgba(6, 78, 59, 0.06);
+  --shadow-button: 0 4px 14px 0 rgba(16, 185, 129, 0.35);
+  --shadow-mint: 0 4px 14px 0 rgba(16, 185, 129, 0.4);
+
+  /* Border Radii */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-bounce: 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Base Reset & Global Typography */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  background-color: var(--theme-bg);
+  color: var(--theme-text-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Animations */
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes floatFast {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+}
+
+@keyframes fadeInFast {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.anim-float-slow {
+  animation: floatSlow 5s ease-in-out infinite;
+}
+
+.anim-float-fast {
+  animation: floatFast 3.5s ease-in-out infinite;
+}
+
+.anim-pulse-glow {
+  animation: pulseGlow 2.5s infinite;
+}
+
+.anim-fade-in {
+  animation: fadeInFast 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

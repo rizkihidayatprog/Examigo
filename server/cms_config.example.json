@@ -1,0 +1,142 @@
+{
+  "theme": {
+    "preset": "purple",
+    "primaryColor": "#3B0764",
+    "accentColor": "#9333EA",
+    "highlightColor": "#C084FC"
+  },
+  "hero": {
+    "pillText": "Platform Pembuat Ujian & Kuis Online Cerdas No. 1 di Indonesia",
+    "headlineMain": "Bikin Soal & Ujian Online",
+    "headlineHighlight": "10x Lebih Cepat",
+    "subtitle": "Unggah materi pelajaran (PDF, Word, PPTX, atau Foto). Otomatis meracik bank soal, mengacak nomor & opsi, mengunci layar anti-contek, serta menilai hasil siswa secara instan.",
+    "primaryCtaText": "Coba Generator Soal Gratis"
+  },
+  "pricing": {
+    "free": {
+      "name": "Free",
+      "badge": "Paket Dasar",
+      "monthlyPrice": 0,
+      "yearlyPrice": 0,
+      "maxAiQuestions": 10,
+      "maxParticipants": 5,
+      "maxActiveExams": 1,
+      "features": [
+        "Maks. 5 Peserta Ujian",
+        "Maks. 1 Ujian Aktif",
+        "Maks. 15 Butir Soal Otomatis",
+        "Input Soal Manual",
+        "Auto-Grading PG"
+      ]
+    },
+    "personal": {
+      "name": "Personal",
+      "badge": "Guru Mandiri",
+      "monthlyPrice": 49000,
+      "yearlyPrice": 490000,
+      "maxAiQuestions": 100,
+      "maxParticipants": 50,
+      "maxActiveExams": 5,
+      "features": [
+        "100 Butir Soal /bulan",
+        "Maks. 50 Peserta Ujian",
+        "Maks. 5 Ujian Aktif",
+        "Upload Dokumen (PDF, Word, PPT)",
+        "Acak Soal & Basic Anti-Cheat",
+        "Export Excel & CSV"
+      ]
+    },
+    "pro_ai": {
+      "name": "Pro",
+      "badge": "Sekolah & Bimbel",
+      "isPopular": true,
+      "monthlyPrice": 149000,
+      "yearlyPrice": 1490000,
+      "maxAiQuestions": 300,
+      "maxParticipants": 200,
+      "maxActiveExams": 15,
+      "features": [
+        "300 Butir Soal /bulan",
+        "Maks. 200 Peserta Ujian",
+        "Maks. 15 Ujian Aktif",
+        "Koreksi Esai & Scan Foto Soal",
+        "Fullscreen Lock Anti-Cheat",
+        "Ekspor PDF & 3 Akses Guru"
+      ]
+    },
+    "serviceFee": 2000
+  },
+  "faqs": [
+    {
+      "q": "Bagaimana cara kerja Generator Otomatis dalam membuat soal?",
+      "a": "Anda hanya perlu mengunggah dokumen materi dalam format PDF, Word, PowerPoint, atau foto lembar soal. Sistem akan membaca seluruh konteks materi dan meracik butir soal sesuai tipe dan tingkat kesulitan yang Anda tentukan beserta kunci jawabannya."
+    },
+    {
+      "q": "Bagaimana cara mencegah siswa mencontek saat ujian online?",
+      "a": "Examigo memiliki fitur Acak Soal & Pilihan Otomatis (setiap siswa mendapat urutan nomor dan opsi A/B/C/D yang berbeda), serta Fullscreen Lock Anti-Cheat pada paket Pro yang otomatis mengunci layar ujian."
+    },
+    {
+      "q": "Apakah hasil ujian bisa langsung diekspor ke Excel?",
+      "a": "Ya, seluruh nilai siswa, detail jawaban benar/salah, serta analisis ketuntasan kelas dapat diunduh langsung ke dalam format Excel (.xlsx), CSV murni, ataupun dicetak ke PDF."
+    },
+    {
+      "q": "Metode pembayaran apa saja yang didukung?",
+      "a": "Examigo terintegrasi resmi dengan Pakasir Payment Gateway yang mendukung pembayaran instan via QRIS (GoPay, OVO, Dana, ShopeePay, BCA/Mandiri Mobile), Virtual Account Bank, dan Transfer."
+    }
+  ],
+  "addonPricing": {
+    "enabled": true,
+    "pricePerAiQuestion": 500,
+    "pricePerStudent": 200,
+    "pricePerActiveExam": 5000,
+    "minAiQuestions": 10,
+    "minStudents": 10,
+    "minActiveExams": 1
+  },
+  "authPages": {
+    "login": {
+      "imageUrl": "/images/auth/login-showcase.jpg",
+      "images": [
+        "/images/auth/login-showcase.jpg"
+      ],
+      "badge": "AI-Powered Online Examination",
+      "headline": "Platform Pembuat Ujian & Soal Otomatis No. 1",
+      "subtitle": "Masuk ke akun Examigo Anda untuk mengelola bank soal cerdas, ujian anti-contek, dan penilaian instan berbasis AI.",
+      "formPosition": "right"
+    },
+    "register": {
+      "imageUrl": "/images/auth/register-showcase.jpg",
+      "images": [
+        "/images/auth/register-showcase.jpg"
+      ],
+      "badge": "Bergabung Bersama 10.000+ Guru & Lembaga",
+      "headline": "Mulai Transformasi Ujian Digital Cerdas",
+      "subtitle": "Daftar gratis sekarang. Bikin soal dari materi pelajaran hanya dalam hitungan detik dan terbitkan ujian secara instan.",
+      "formPosition": "left"
+    },
+    "forgotPassword": {
+      "imageUrl": "/images/auth/login-showcase.jpg",
+      "images": [
+        "/images/auth/login-showcase.jpg"
+      ],
+      "badge": "Keamanan Akun Terjamin",
+      "headline": "Pemulihan Akses Akun Examigo",
+      "subtitle": "Jangan khawatir, kami akan membantu memulihkan akses akun Anda dengan tautan verifikasi aman ke email terdaftar.",
+      "formPosition": "right"
+    }
+  },
+  "maintenance": {
+    "enabled": false,
+    "title": "Sistem Sedang Dalam Pemeliharaan",
+    "message": "Kami sedang melakukan pemeliharaan sistem rutin dan peningkatan performa server Examigo. Layanan akan segera kembali normal.",
+    "estimatedEndTime": "sampai smuanya kondusif",
+    "allowAdminLogin": false,
+    "features": {
+      "payments": false,
+      "aiGeneration": false,
+      "examCreation": false,
+      "studentExams": false
+    }
+  },
+  "geminiApiKey": ""
+}

@@ -53,7 +53,7 @@ export async function sendPasswordResetEmail(email: string, name: string, resetT
     <div style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0;">
       <div style="text-align: center; margin-bottom: 24px;">
         <h1 style="color: #4f46e5; margin: 0; font-size: 24px; font-weight: 800;">Examigo ⚡</h1>
-        <p style="color: #64748b; font-size: 13px; margin-top: 4px;">Platform Pembuat Soal & Ujian Online Berbasis AI</p>
+        <p style="color: #64748b; font-size: 13px; margin-top: 4px;">Platform Pembuat Soal & Ujian Online Otomatis</p>
       </div>
 
       <div style="background-color: #f8fafc; padding: 24px; border-radius: 12px; border: 1px solid #f1f5f9; margin-bottom: 24px;">
@@ -150,7 +150,7 @@ export async function sendSubscriptionExpiryWarningEmail(email: string, name: st
       <div style="background-color: #fffbeb; padding: 24px; border-radius: 12px; border: 1px solid #fef3c7; margin-bottom: 24px;">
         <h2 style="color: #92400e; font-size: 18px; font-weight: 700; margin-top: 0;">Masa Aktif Paket Berakhir Segera! ⚠️</h2>
         <p style="color: #78350f; font-size: 14px; leading-height: 1.6;">Halo <strong>${name}</strong>,</p>
-        <p style="color: #78350f; font-size: 14px; leading-height: 1.6;">Paket langganan <strong>${planName}</strong> Anda akan kedaluwarsa pada <strong>${validUntilFormatted}</strong>. Lakukan perpanjangan untuk terus menikmati fitur AI Generator dan Anti-Cheat tanpa hambatan.</p>
+        <p style="color: #78350f; font-size: 14px; leading-height: 1.6;">Paket langganan <strong>${planName}</strong> Anda akan kedaluwarsa pada <strong>${validUntilFormatted}</strong>. Lakukan perpanjangan untuk terus menikmati fitur Generator Soal dan Anti-Cheat tanpa hambatan.</p>
 
         <div style="text-align: center; margin: 24px 0;">
           <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/checkout" style="background-color: #d97706; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block;">Perpanjang Paket Sekarang</a>

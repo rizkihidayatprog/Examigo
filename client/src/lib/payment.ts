@@ -6,19 +6,57 @@ export interface CheckoutResult {
   amount: number;
   plan: 'PERSONAL' | 'PRO_AI';
   paymentUrl: string;
+  snapToken?: string;
+  isProduction?: boolean;
+  clientKey?: string;
   message?: string;
   autoPaid?: boolean;
 }
 
-export const processPakasirCheckout = async (plan: 'PERSONAL' | 'PRO_AI', billingCycle: 'MONTHLY' | 'YEARLY', user: { id?: string, email: string, name: string }, couponCode?: string): Promise<CheckoutResult> => {
+export const loadMidtransSnap = (isProduction: boolean = false, clientKey?: string): Promise<void> => {
+  return new Promise((resolve) => {
+    const cKey = clientKey || import.meta.env.VITE_MIDTRANS_CLIENT_KEY || 'Mid-client-DXxW43_G0huL7fSm';
+    const targetSrc = isProduction
+      ? 'https://app.midtrans.com/snap/snap.js'
+      : 'https://app.sandbox.midtrans.com/snap/snap.js';
+
+    const existingScript = document.getElementById('midtrans-snap-js') as HTMLScriptElement | null;
+    if (existingScript) {
+      if (existingScript.src === targetSrc && (window as any).snap) {
+        return resolve();
+      }
+      existingScript.remove();
+    }
+
+    const script = document.createElement('script');
+    script.id = 'midtrans-snap-js';
+    script.src = targetSrc;
+    script.setAttribute('data-client-key', cKey);
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => {
+      console.error('Failed to load Midtrans snap.js');
+      resolve();
+    };
+    document.head.appendChild(script);
+  });
+};
+
+export const processMidtransCheckout = async (
+  plan: 'PERSONAL' | 'PRO_AI',
+  billingCycle: 'MONTHLY' | 'YEARLY',
+  user: { id?: string; email: string; name: string },
+  couponCode?: string
+): Promise<CheckoutResult> => {
   try {
     const token = localStorage.getItem('examigo_token');
-    
+
     const response = await fetch('/api/payments/checkout', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        'X-Requested-With': 'XMLHttpRequest',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
       },
       body: JSON.stringify({
         plan,
@@ -30,18 +68,24 @@ export const processPakasirCheckout = async (plan: 'PERSONAL' | 'PRO_AI', billin
       })
     });
 
-  const data = await response.json();
-  if (!data.success) {
-    throw new Error(data.message || 'Gagal memproses pembayaran Pakasir');
-  }
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.message || 'Gagal memproses pembayaran Midtrans');
+    }
 
-  return data;
+    return data;
   } catch (err: any) {
     throw err;
   }
-}
+};
 
-export async function checkPakasirPaymentStatus(orderId: string) {
+// Aliased for backward compatibility
+export const processPakasirCheckout = processMidtransCheckout;
+
+export async function checkMidtransPaymentStatus(orderId: string) {
   const response = await fetch(`${API_BASE}/payments/status/${orderId}`);
   return await response.json();
 }
+
+// Aliased for backward compatibility
+export const checkPakasirPaymentStatus = checkMidtransPaymentStatus;

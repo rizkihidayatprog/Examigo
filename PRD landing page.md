@@ -1,322 +1,197 @@
-# 📚 Examigo - Product Requirements Document (PRD)
+# 🌟 PRD: Examigo Next-Gen Landing Page (Spesifikasi Produk & Desain)
 
-### **AI-Powered Online Exam Builder**
-
-## Deskripsi
-**Examigo** adalah platform **Software as a Service (SaaS)** berbasis web yang membantu guru, dosen, sekolah, universitas, lembaga kursus, dan perusahaan dalam membuat, mengelola, serta menyelenggarakan ujian secara online dengan lebih cepat dan efisien.
-
-Keunggulan utama Examigo adalah **AI Question Generator**, di mana pengguna cukup mengunggah materi pembelajaran dalam format **PDF, DOCX, PPT/PPTX, atau teks**, kemudian AI akan membaca isi materi dan secara otomatis membuat soal ujian lengkap dengan pilihan jawaban, kunci jawaban, serta tingkat kesulitan yang dapat disesuaikan.
-
-Selain fitur AI, Examigo juga menyediakan **Bank Soal**, **Exam Builder**, **Pelaksanaan Ujian Online**, **Penilaian Otomatis**, **Dashboard Analitik**, dan **Export Hasil** dalam satu platform modern yang dapat diakses melalui desktop maupun perangkat mobile tanpa perlu menginstal aplikasi.
+> **Dokumen Spesifikasi Kebutuhan Produk (PRD) — Landing Page Berbasis Konversi Tinggi & Edu-Aesthetic**  
+> **Platform**: Examigo — AI-Powered Online Exam Builder (SaaS)  
+> **Versi**: 2.5 (High Contrast, Rich Motion, Anti-AI-Slop)  
+> **Target Audience**: Guru, Dosen, Sekolah/Kampus, Bimbingan Belajar, HRD & Trainer  
 
 ---
 
-# 🎯 Tujuan Produk
-Membantu institusi pendidikan dan perusahaan menghemat waktu dalam proses pembuatan soal, pelaksanaan ujian, dan evaluasi hasil belajar melalui platform berbasis web yang modern dan mudah digunakan.
+## 📌 1. Ringkasan Eksekutif & Value Proposition
+
+### 1.1 Visi Produk
+Examigo Landing Page dirancang untuk menjadi etalase utama SaaS yang **modern, berenergi tinggi (eye-catching), interaktif, dan bebas dari klise ("AI Slop")**. Pengunjung dalam 5 detik pertama harus langsung memahami nilai nyata Examigo: *memangkas waktu pembuatan soal dari 3 jam menjadi 2 menit melalui AI ekstraksi materi, dilengkapi ruang ujian anti-curang dan penilaian otomatis real-time*.
+
+### 1.2 Pilar Nilai Utama (Core Value Proposition)
+1. **Ekstraksi Materi Cerdas (Bukan Chatbot Biasa)**: Unggah modul format PDF, Word, PPTX, atau foto lembar soal fisik, AI langsung menghasilkan butir soal berbobot (PG, Essay, Isian Singkat) lengkap dengan kunci jawaban dan pembahasan.
+2. **Platform 100% Web Tanpa Install**: Murid & guru dapat langsung menyelenggarakan ujian dari browser smartphone (HP), tablet, maupun laptop dengan latensi rendah.
+3. **Integritas Ujian Terjaga**: Mode *Fullscreen Lock*, deteksi perpindahan tab/aplikasi, acak butir soal & opsi A/B/C/D otomatis, serta penyimpanan jawaban *Auto Save* real-time.
+4. **Grading & Laporan Instan**: Penilaian otomatis untuk PG dan bantuan skoring AI untuk Essay, disertai visualisasi analitik dan ekspor satu klik ke Excel (.xlsx), CSV, dan PDF.
 
 ---
 
-# 👥 Target Pengguna
+## 🎨 2. Design System, Color Tokens & Motion Guidelines
 
-### Pendidikan
-* Guru
-* Dosen
-* Sekolah SD, SMP, SMA/SMK
-* Universitas
-* Bimbingan Belajar
-* Lembaga Kursus
+Prinsip desain Examigo: **Eksplorasi Edukasi Premium, Kontras Tinggi, dan Gerakan Ringan (Lightweight Micro-Animations)**. Menolak warna ungu/violet/indigo dan menghindari elemen visual artifisial yang tidak bermakna.
 
-### Perusahaan
-* HRD
-* Training Center
-* Assessment Center
-* Divisi Learning & Development
+### 2.1 Color Palette & Token Standar
+| Token Name | Hex Code | Peran & Penggunaan |
+| :--- | :--- | :--- |
+| `edu-navy` | `#1B263B` | **Primary Brand Canvas & Typography** (Hero background, heading utama, elemen kontras tinggi). |
+| `edu-electric` | `#0091D4` | **Interactive Accent & Action** (Tombol utama, highlight teks, indikator aktif). |
+| `edu-butter` | `#FDD406` | **High-Attention Eye Catcher** (Badge promosi, highlight rating bintang, CTA "Daftar Gratis"). |
+| `edu-sage` | `#87A96B` | **Security & Success Indicator** (Badge anti-cheat, status tersimpan otomatis, verifikasi). |
+| `edu-ice` | `#F8FAFC` | **Background Canvas Section** (Slate-50, lembut di mata & kontras tajam dengan teks). |
+| `edu-white` | `#FFFFFF` | **Surface Cards** (Kartu fitur dengan border 1px dan elevasi bayangan halus). |
 
----
+> **⚠️ PANTANGAN DESAIN & KONTROL KONTRAST:**
+> - **DILARANG** menggunakan warna ungu (*purple/violet/indigo*) di semua elemen UI.
+> - **DILARANG** menempatkan teks putih di atas latar belakang putih atau abu-abu terang. Semua teks pada latar terang wajib menggunakan `#1B263B` atau `#334155`.
+> - Semua ikon wajib berupa **Lucide SVG Icons** dengan kontras warna solid (bukan emoji generik).
 
-# ❗ Permasalahan yang Diselesaikan
-Banyak guru dan instruktur masih membuat soal secara manual, sehingga prosesnya memakan waktu dan sulit dikelola.
-
-Beberapa kendala yang sering terjadi:
-* Membuat soal membutuhkan waktu lama.
-* Sulit membuat variasi soal.
-* Bank soal tidak terorganisir.
-* Koreksi ujian masih dilakukan secara manual.
-* Sulit menganalisis hasil ujian peserta.
-* Tidak ada sistem terpusat untuk membuat dan mengelola ujian.
+### 2.2 Sistem Animasi Ringan (Lightweight Motion System)
+Animasi harus meningkatkan pemahaman pengguna tanpa membebani performa perangkat (60 FPS, CSS GPU-accelerated):
+1. **Ambient Hero Mesh Glow**: Efek pendaran radial dinamis (`bg-[#0091D4]/25 blur-[120px]`) pada hero section yang memberikan kedalaman tanpa video latar yang berat.
+2. **Pulsing Status Pill**: Badge hero dengan animasi ping halus untuk menunjukkan platform selalu aktif dan siap pakai.
+3. **Smooth Interactive Simulator**: Transisi tab 4-tahap (AI Generator → Builder → Ruang Ujian → Analitik) dengan opsi auto-slide yang dapat di-pause kapan saja oleh pengguna.
+4. **Elevated Card Lift**: Efek hover `transform: translateY(-6px)` dengan bayangan berlapis `shadow-edu-card` pada setiap kartu fitur dan alur kerja.
+5. **Interactive Question Picker**: Di dalam simulasi ruang ujian, tombol nomor soal dapat diklik secara interaktif untuk melihat perubahan tampilan pertanyaan secara instan.
 
 ---
 
-# 💡 Solusi
-Examigo menyederhanakan proses tersebut dengan alur berikut:
-1. Pengguna mengunggah materi pembelajaran.
-2. AI menganalisis isi materi.
-3. AI menghasilkan soal secara otomatis.
-4. Pengguna dapat mengedit soal sebelum digunakan.
-5. Soal disimpan ke Bank Soal.
-6. Pengguna membuat dan mempublikasikan ujian.
-7. Peserta mengerjakan ujian secara online.
-8. Nilai dan analitik ditampilkan secara otomatis.
+## 🏗️ 3. Arsitektur Informasi & Spesifikasi Komponen Halaman
+
+Landing page terdiri dari 12 bagian terintegrasi:
+
+```mermaid
+graph TD
+    A[1. Sticky Navbar & Direct Navigation] --> B[2. High-Impact Hero & Live Join Code]
+    B --> C[3. Interactive 4-Tab Live Simulator]
+    C --> D[4. Trust Metrics & Real-time Stats]
+    D --> E[5. Reality Check: Manual vs Examigo AI]
+    E --> F[6. 6 Core Feature Pillars Grid]
+    F --> G[7. 4-Step Visual Workflow Line]
+    G --> H[8. Target Audience Personas]
+    H --> I[9. Transparent 4-Tier Pricing & Feature Matrix]
+    I --> J[10. Interactive FAQ Accordion]
+    J --> K[11. Final Conversion Action Banner]
+    K --> L[12. High-Contrast Footer]
+```
 
 ---
 
-# 🚀 Fitur Utama
-
-## 🤖 AI Question Generator
-Pengguna dapat mengunggah:
-* PDF
-* DOCX
-* PPT / PPTX
-* TXT
-
-AI akan menghasilkan:
-* Pilihan Ganda
-* Essay
-* Benar / Salah
-* Isian Singkat
-
-Pengguna juga dapat menentukan:
-* Jumlah soal
-* Tingkat kesulitan
-* Topik
-* Mata pelajaran
+### 3.1 Bagian 1: Sticky Navigation Bar
+- **Komponen**: Logo Examigo (varian *light* dengan logo emblem bintang `✦`), tautan navigasi (Fitur, Simulasi, Alur Kerja, Paket Harga, FAQ), dan tombol aksi cepat.
+- **Interaksi**:
+  - Tautan "Paket Harga ⚡" dilengkapi badge latar kuning butter `#FDD406` berteks navy untuk menarik klik.
+  - State Login: Tombol langsung mengarahkan ke Dashboard Workspace.
+  - State Non-Login: Tombol "Masuk" (transparan elegan) dan tombol "Daftar Gratis" (kuning butter berbayangan tajam).
 
 ---
 
-## 📚 Bank Soal
-Semua soal akan tersimpan dalam Bank Soal dan dapat digunakan kembali.
-
-Fitur:
-* Folder
-* Kategori
-* Tag
-* Search
-* Filter
-* Import
-* Export
-* Edit soal
+### 3.2 Bagian 2: High-Impact Hero Section
+- **Latar Belakang**: Gradasi gelap *Deep Navy* (`#1B263B` ke `#0D131F`) dengan ambient mesh glow biru elektrik dan kuning emas.
+- **Elemen Headline**:
+  - Pill Badge: *"Platform AI Pembuat Ujian & Kuis Online Cerdas No. 1 di Indonesia"* dengan indikator live ping.
+  - Title H1: *"Bikin Soal & Ujian Online 10x Lebih Cepat ✦"* dengan garis bawah bergelombang kuning butter.
+  - Sub-headline: Penjelasan singkat alur unggah materi → AI racik soal → auto-grading.
+- **Dual Conversion Engine**:
+  - Tombol Utama: *"Coba AI Generator Gratis"* (Biru elektrik `#0091D4` dengan hover scale).
+  - Quick Join Form: Input kode ujian siswa (`KODE UJIAN...`) dengan tombol *"Ikut Ujian"* berlatar kuning butter untuk langsung masuk ke ruang ujian tanpa registrasi.
+- **Trust Badges**: 3 lencana kepercayaan (100% Web Tanpa Install, Anti-Cheat Fullscreen Lock, Auto-Grading & Ekspor Excel).
 
 ---
 
-## 📝 Exam Builder
-Halaman untuk menyusun ujian.
-
-Fitur:
-* Tambah soal
-* Hapus soal
-* Drag & Drop urutan soal
-* Preview ujian
-* Acak soal
-* Acak pilihan jawaban
-
----
-
-## ⏰ Pengaturan Ujian
-Pengguna dapat mengatur:
-* Judul ujian
-* Jadwal mulai
-* Jadwal selesai
-* Durasi
-* Jumlah soal
-* Nilai minimum
-* Password ujian
-* Status publikasi
+### 3.3 Bagian 3: Interactive 4-Tab Live Simulator
+Simulator interaktif yang memberikan pengalaman nyata bagi calon pengguna sebelum mendaftar:
+1. **Tab 1: AI Generator**:
+   - Menampilkan contoh ekstraksi dari file `Modul_Fisika_Kelas_10.pdf`.
+   - Menampilkan soal Fisika nyata dengan pilihan ganda A, B, C, D yang **bisa diklik**. Jika opsi benar diklik, muncul checklist hijau dan kotak penjelasan AI (kunci jawaban berlandaskan rumus `a = F / m`).
+2. **Tab 2: Exam Builder**:
+   - Menampilkan konfigurasi ujian: Durasi 60 Menit, KKM 75, status Acak Soal aktif, dan acak pilihan jawaban aktif.
+3. **Tab 3: Ruang Ujian Siswa (Focus Mode)**:
+   - Menampilkan indikator Fullscreen Lock, penghitung waktu mundur 45:12, status auto-save, dan grid 12 nomor soal yang interaktif.
+4. **Tab 4: Analitik & Hasil**:
+   - Menampilkan metrik 142 peserta, rata-rata skor 86.4, kelulusan 94.2%, serta diagram persentase distribusi nilai siswa.
 
 ---
 
-## 👨‍🎓 Halaman Peserta
-Peserta dapat:
-* Mengakses ujian melalui link atau kode ujian.
-* Mengerjakan soal secara online.
-* Melihat sisa waktu.
-* Menyimpan jawaban otomatis (Auto Save).
-* Mengirim jawaban saat selesai.
+### 3.4 Bagian 4: Metrics Ticker & Social Proof
+4 indikator performa berukuran besar dengan tipografi bold:
+- **10,000+** Soal AI Di-generate
+- **99.8%** Akurasi Auto-Grading
+- **< 2 Menit** Waktu Pembuatan Ujian Lengkap
+- **100%** Mendukung Kurikulum Merdeka & Standar Penilaian Nasional
 
 ---
 
-## 📊 Dashboard Analitik
-Dashboard menyediakan informasi seperti:
-* Jumlah peserta
-* Nilai rata-rata
-* Persentase kelulusan
-* Grafik hasil ujian
-* Statistik jawaban benar dan salah
-* Analisis tingkat kesulitan soal
+### 3.5 Bagian 5: Reality Check (Manual Tradisional vs Examigo AI)
+Tabel perbandingan visual 2 kolom yang membandingkan friksi cara lama vs kecepatan Examigo:
+- **Cara Manual (Merah/X)**: Mengetik soal berjam-jam, rawan contek karena nomor sama, koreksi kertas satu per satu hingga larut malam, arsip soal tercecer di file Word.
+- **Solusi Examigo (Hijau Sage/Checklist)**: Ekstraksi AI 10 detik, acak nomor & opsi otomatis, auto-grading instan, dan Bank Soal terpusat siap ekspor Excel.
 
 ---
 
-## 📥 Export Data
-Mendukung ekspor ke:
-* Excel (.xlsx)
-* CSV
-* PDF
+### 3.6 Bagian 6: 6 Core Feature Pillars Grid
+Kartu fitur interaktif berlatar putih dengan ikon Lucide besar dan warna background ikon solid:
+1. **AI Question Generator** (Ikon Bot • Navy/Butter): Dukungan PDF, DOCX, PPT, TXT, dan foto soal fisik.
+2. **Bank Soal Terorganisir** (Ikon BookOpen • Biru Elektrik): Filter mapel, kelas, tingkat kesulitan, dan toolbar rumus matematika.
+3. **Exam Builder Fleksibel** (Ikon Layers • Kuning Butter): Acak soal & opsi, token akses, QR Code, dan pengaturan durasi.
+4. **Anti-Cheat Mode** (Ikon ShieldCheck • Hijau Sage): Fullscreen lock, deteksi pindah tab, dan real-time auto save.
+5. **Auto-Grading & Analitik** (Ikon BarChart2 • Navy): Koreksi instan PG & esai AI, analisis daya pembeda soal.
+6. **Ekspor Laporan Lengkap** (Ikon Download • Biru Elektrik): Unduh hasil dalam format Excel (.xlsx), CSV, dan cetak PDF.
 
 ---
 
-# 🔄 Alur Penggunaan
-1. Login ke Examigo.
-2. Upload materi pembelajaran.
-3. AI membuat soal otomatis.
-4. Pengguna meninjau dan mengedit soal.
-5. Simpan ke Bank Soal.
-6. Susun ujian menggunakan Exam Builder.
-7. Publikasikan ujian.
-8. Peserta mengerjakan ujian.
-9. Sistem melakukan penilaian otomatis.
-10. Hasil ditampilkan pada Dashboard Analitik.
+### 3.7 Bagian 7: 4-Step Interactive Visual Workflow
+Alur 4 tahap dengan garis hubung gradasi dinamis:
+1. `Langkah 1`: **Upload Materi** (Unggah PDF, Word, PPT, foto soal).
+2. `Langkah 2`: **AI Generate Soal** (AI meracik butir soal dan kunci jawaban).
+3. `Langkah 3`: **Publikasi Ujian** (Bagikan kode akses atau QR code).
+4. `Langkah 4`: **Auto-Grading** (Siswa selesai, nilai dan rekap analitik langsung tersaji).
 
 ---
 
-# 🎨 UI/UX Design System & Specification
-
-Examigo mengusung konsep **Clean, Minimal, Educational, dan Mobile-First (Focus-First)**. Desain mengutamakan kesederhanaan, kejelasan informasi, serta kenyamanan peserta saat mengerjakan ujian tanpa gangguan visual berlebihan.
-
----
-
-## 🎨 Konsep Visual & Color Palette
-
-### 1. Mode Default: Light Mode
-- **Background Utama**: `#F8FAFC` (Slate-50 - Bersih & Nyaman di mata)
-- **Kartu & Surface**: `#FFFFFF` (Putih murni dengan border 1px `#E2E8F0` dan bayangan lembut `shadow-sm`)
-- **Primary Color**: `#2563EB` (Blue-600 - Profesional, tenang, cocok untuk pendidikan)
-- **Primary Dark**: `#1D4ED8` (Blue-700 - Hover state)
-- **Text Primary**: `#0F172A` (Slate-900 - Kontras tinggi & keterbacaan maksimal)
-- **Text Secondary**: `#64748B` (Slate-500 - Subteks & label)
-- **Border System**: `#E2E8F0` (Slate-200 - Garis pemisah halus)
-
-### 2. Accent & Status Colors
-- **Success / Lulus**: `#16A34A` (Emerald-600) / Penanda `✓` (Sudah Dijawab)
-- **Warning / Ragu**: `#F59E0B` (Amber-500) / Penanda `⚑` (Ditandai Ragu) & Timer `< 10m`
-- **Danger / Gagal**: `#DC2626` (Red-600) / Timer `< 5m` (Berkedip)
-
-### 3. Typography & Touch Targets
-- **Font Utama**: **Plus Jakarta Sans** (Google Fonts).
-- **Hierarki Font**:
-  - Headings: 24px - 32px (Bold / ExtraBold).
-  - Body Text: 16px (Medium).
-  - Pilihan Jawaban: 16px - 18px (Medium, Line Height longgar).
-- **Touch Targets**: Minimum **48px height** pada tombol navigasi dan kartu pilihan jawaban (sangat nyaman digunakan di smartphone).
+### 3.8 Bagian 8: Target Audience Spotlight
+4 segmen pengguna dengan kartu yang terdefinisi jelas:
+- **Guru & Dosen**: Memudahkan ulangan harian, UTS, dan UAS tanpa lembur koreksi.
+- **Sekolah & Kampus**: Standarisasi ujian online antar-kelas dengan laporan terpusat.
+- **Bimbel & Kursus**: Fasilitas tryout online dan latihan soal adaptif.
+- **HRD & Corporate Trainer**: Asesmen karyawan baru dan sertifikasi pelatihan internal.
 
 ---
 
-## 📱 Fitur UI Per Halaman
-
-### 1. Dashboard Pengajar & Navigasi Utama
-- **Sidebar**: Berwarna putih (`#FFFFFF`) dengan border pemisah `1px border-slate-200` dan penanda menu aktif biru `bg-blue-50 text-blue-600 font-bold border-l-4 border-blue-600`.
-- **Metrics Overview Cards**: Kartu indikator bersih (`Total Ujian`, `Bank Soal`, `Jumlah Peserta`, `Nilai Rata-rata`). Nilai rata-rata ditampilkan sebagai murni angka murni tanpa `%`.
-- **Daftar Ujian Aktif & Terbaru**: Tabel / list bersih dilengkapi tombol aksi cepat (`Monitor Live`, `QR Code`, `Salin Link`, `Buka Ujian`, `Hapus`).
-
-### 2. Mode Fokus Ujian Peserta (`ExamRoomPage`)
-Tampilan halaman ujian dibuat **fokus total pada pengerjaan soal**, bebas dari menu distraksi.
-- **Top Header Bar**:
-  - Judul Ujian, Kode Akses, Mapel, dan Kelas.
-  - Status Auto Save (`Tersimpan` / `Menyimpan...`).
-  - **Timer Bertahap**:
-    - `> 10m`: Normal (`⏱ 48:32`)
-    - `5 - 10m`: Warning Kuning (`⚠ 08:32`)
-    - `< 5m`: Danger Merah Berkedip (`⚠ 02:45`)
-- **Kartu Soal & Progress Bar**:
-  - Menampilkan progress pengerjaan `Soal 12 dari 40 (30%)` dengan indikator visual progress bar.
-  - Teks soal berukuran 16-18px dengan dukungan gambar materi (maks 5MB).
-- **Kartu Opsi Jawaban (Pilihan Ganda & Benar/Salah)**:
-  - Minimum height 52px (Touch Target 48px+).
-  - Penanda jelas: `● C. Jawaban` (Terpilih) vs `○ A. Jawaban` (Belum terpilih).
-- **Navigasi Nomor Soal (Side Panel & Grid)**:
-  - Legenda Status Aksesibel (tidak hanya mengandalkan warna):
-    - `✓` **Sudah Dijawab** (Green `#16A34A`)
-    - `○` **Belum Dijawab** (Slate `#64748B`)
-    - `⚑` **Ditandai Ragu** (Amber `#F59E0B`)
-- **Modal Konfirmasi Submit**:
-  - Judul: `Selesaikan Ujian?`
-  - Menyajikan rincian `35 dari 40 soal dijawab, 5 soal belum dijawab` dengan kotak peringatan kuning jika ada soal kosong.
-- **Halaman Hasil Ujian (Result Screen)**:
-  - Hirarki tampilan: `🎉 Ujian Selesai!` → `Nilai Akhir Murni (85/100)` → `Ringkasan Status` → Tombol `[ Lihat Pembahasan Soal ]`.
+### 3.9 Bagian 9: Transparent 4-Tier Pricing & Feature Comparison
+Tabel harga transparan dengan integrasi Payment Gateway resmi **Pakasir (QRIS & Bank Transfer)**:
+1. **Free (Rp 0)**: 5 Peserta, 1 Ujian aktif, Bank soal 15 butir, auto-grading dasar.
+2. **Personal (Rp 49.000/bln)**: 100 AI Questions/bln, 50 Peserta, 5 Ujian aktif, upload dokumen, ekspor Excel/CSV.
+3. **Pro AI ⭐ Terpopuler (Rp 149.000/bln)**: 300 AI Questions/bln, 200 Peserta, 15 Ujian, penilaian Esai AI, Full Anti-Cheat Lock, 3 akses guru.
+4. **Enterprise (Custom Plan)**: Unlimited peserta & soal, dedicated cloud instance, Custom Domain & Single Sign-On (SSO).
+- **Matriks Komparasi Rinci**: Tabel komparasi lengkap fitur per baris untuk mempermudah keputusan institusi.
 
 ---
 
-# 🛠 Teknologi
-
-## Frontend
-* React.js (Vite)
-* TypeScript
-* Tailwind CSS
-* shadcn/ui
-* React Router
-* TanStack Query
-* React Hook Form
-* Recharts
-
-## Backend
-* Node.js
-* Express.js
-* Prisma ORM
-* JWT Authentication
-* Multer
-* Zod Validation
-
-## Database
-* PostgreSQL (Supabase Free)
-
-## File Storage
-* Supabase Storage (Free)
-Digunakan untuk menyimpan: PDF, DOCX, PPT, Gambar.
-
-## AI
-* Google Gemini API
-* OpenAI API (opsional)
-
-## Deployment
-* **Frontend**: Vercel (Free)
-* **Backend**: Render (Free)
-* **Database & Storage**: Supabase (Free)
+### 3.10 Bagian 10: Interactive FAQ Accordion
+Accordion tanya-jawab interaktif dengan transisi halus:
+- Kebutuhan instalasi aplikasi (100% web browser, tidak butuh install).
+- Format file yang didukung AI.
+- Keamanan & pencegahan kecurangan.
+- Kompatibilitas ekspor data ke Excel & PDF.
 
 ---
 
-# 🗄 Struktur Database Models
-* **Users**: Data pengguna dan hak akses.
-* **Subjects**: Kategori atau mata pelajaran.
-* **Materials**: Materi yang diunggah pengguna.
-* **Questions**: Soal hasil AI atau soal manual.
-* **Choices**: Pilihan jawaban untuk soal objektif.
-* **Exams**: Informasi ujian.
-* **Exam Questions**: Relasi antara ujian dan soal.
-* **Participants**: Data peserta ujian.
-* **Answers**: Jawaban yang diberikan peserta.
-* **Results**: Nilai akhir dan hasil ujian.
+### 3.11 Bagian 11 & 12: High-Conversion CTA & Footer
+- **Action Banner**: Kartu berlatar Deep Navy dengan pendaran cahaya, teks ajakan aksi, dan tombol *"Daftar Akun Gratis Sekarang ✦"*.
+- **Footer**: Logo Examigo berlatar putih/slate dengan kontras tinggi, navigasi lengkap, dan *copyright* resmi.
 
 ---
 
-# ⭐ Keunggulan Examigo
-* Membuat soal otomatis dari materi pembelajaran.
-* Mendukung berbagai format dokumen.
-* Soal dapat diedit sebelum dipublikasikan.
-* Bank soal terorganisir dengan baik.
-* Penilaian otomatis untuk soal objektif.
-* Dashboard analitik untuk mengevaluasi hasil ujian.
-* Responsif di desktop maupun perangkat mobile.
-* Arsitektur modern menggunakan React.js dan Node.js.
-* Memanfaatkan layanan gratis (Supabase Free, Vercel, Render) sehingga biaya operasional awal sangat rendah.
+## ⚡ 4. Target Performa & Kualitas Teknis
+
+1. **Core Web Vitals**:
+   - **Largest Contentful Paint (LCP)**: < 1.2 detik (Optimasi CSS & font *Plus Jakarta Sans*).
+   - **Cumulative Layout Shift (CLS)**: 0.00 (Semua rasio container statis).
+   - **First Input Delay / INP**: < 50ms (Interaksi tab dan FAQ ringan tanpa re-render berlebih).
+2. **Aksesibilitas & Keterbacaan**:
+   - Kontras warna WCAG AAA pada teks utama (`#1B263B` di atas `#FFFFFF` dan `#F8FAFC`).
+   - Touch targets minimum 48px untuk navigasi mobile.
+3. **Responsivitas**:
+   - 100% Fluid dari ukuran layar 320px (smartphone kecil) hingga 4K display.
 
 ---
 
-# 🚀 Roadmap Pengembangan
-
-### Versi 1.0 (MVP)
-* Login & Manajemen Pengguna
-* AI Question Generator
-* Bank Soal
-* Exam Builder
-* Ujian Online
-* Penilaian Otomatis
-* Dashboard Analitik
-
-### Versi 2.0
-* Sertifikat Otomatis
-* QR Code Ujian
-* Live Monitoring Peserta
-* Anti-Cheat (Deteksi perpindahan tab, Fullscreen Mode)
-
----
-
-# 💰 Nilai Jual (Unique Selling Proposition)
-Examigo menggabungkan **AI Question Generator**, **Bank Soal**, **Exam Builder**, **Pelaksanaan Ujian**, **Penilaian Otomatis**, dan **Dashboard Analitik** dalam satu platform berbasis web yang mudah digunakan.
+## 📅 5. Status Implementasi & Verifikasi
+- **Frontend Page**: [LandingPage.tsx](file:///Users/rizkihidayat/Documents/PROJECT/Examigo/client/src/pages/LandingPage.tsx)
+- **Komponen Logo**: [ExamigoLogo.tsx](file:///Users/rizkihidayat/Documents/PROJECT/Examigo/client/src/components/common/ExamigoLogo.tsx)
+- **Payment Library**: [payment.ts](file:///Users/rizkihidayat/Documents/PROJECT/Examigo/client/src/lib/payment.ts)
+- **Status**: Siap dirilis & terhubung penuh ke backend API.

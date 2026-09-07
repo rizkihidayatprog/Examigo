@@ -8,9 +8,15 @@ interface User {
   plan: 'FREE' | 'PERSONAL' | 'PRO_AI' | 'ENTERPRISE';
   planValidUntil?: string;
   avatarUrl?: string;
+  institution?: string;
+  phone?: string;
+  position?: string;
+  bio?: string;
   aiQuotaUsed: number;
   aiQuotaLimit: number;
   createdAt: string;
+  examsCount?: number;
+  questionsCount?: number;
 }
 
 interface AuthContextType {
@@ -20,10 +26,22 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
+  updateUser: (u: Partial<User>) => void;
+  refreshUser: () => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+
+export function isProfileComplete(user: User | null): boolean {
+  if (!user) return true;
+  if (user.role === 'ADMIN') return true;
+  return Boolean(
+    user.name && user.name.trim().length > 0 &&
+    user.institution && user.institution.trim().length > 0 &&
+    user.phone && user.phone.trim().length > 0
+  );
+}
 
 const API_BASE = '/api';
 
@@ -32,6 +50,7 @@ export function api(path: string, options: RequestInit = {}) {
   const isFormData = options.body instanceof FormData;
   
   const headers: HeadersInit = {
+    'X-Requested-With': 'XMLHttpRequest',
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
@@ -49,7 +68,19 @@ export async function safeJson(res: Response) {
     return { success: false, message: 'Server mengembalikan respon kosong' };
   }
   try {
-    return JSON.parse(text);
+    const data = JSON.parse(text);
+    if (res.status === 503 && data?.inMaintenance && data?.scope !== 'feature') {
+      window.dispatchEvent(new CustomEvent('examigo:maintenance', { 
+        detail: {
+          enabled: true,
+          title: data.title,
+          message: data.message,
+          estimatedEndTime: data.estimatedEndTime,
+          allowAdminLogin: data.allowAdminLogin ?? true
+        } 
+      }));
+    }
+    return data;
   } catch (err) {
     console.error('SafeJson Parse Error:', err, text);
     return {
@@ -115,8 +146,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuth(data.data.token, data.data.user);
   };
 
+  const updateUser = useCallback((u: Partial<User>) => {
+    setUser((prev) => (prev ? { ...prev, ...u } : null));
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    const t = localStorage.getItem('examigo_token');
+    if (!t) return;
+    try {
+      const res = await api('/auth/me');
+      const data = await safeJson(res);
+      if (data.success && data.data) {
+        setUser(data.data);
+      }
+    } catch (e) {
+      console.error('Failed to refresh user:', e);
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated: !!user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated: !!user, isLoading, login, register, updateUser, refreshUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

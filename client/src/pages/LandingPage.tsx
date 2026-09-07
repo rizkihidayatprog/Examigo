@@ -3,52 +3,200 @@ import { Link, useNavigate } from 'react-router-dom';
 import { 
   Sparkles, 
   Upload, 
-  HelpCircle, 
   Layers, 
   BarChart2, 
   CheckCircle2, 
   ShieldCheck, 
   Clock, 
   Zap, 
-  FileText, 
-  Award, 
   ArrowRight, 
   BookOpen, 
   GraduationCap, 
   Users, 
   ChevronDown, 
   Download, 
-  Play,
-  Pause,
-  RefreshCw,
-  Sliders,
-  Check,
-  X,
-  Bot,
-  Building2,
-  User,
-  Star,
-  Share2,
-  MonitorSmartphone,
-  Trophy
+  Play, 
+  Pause, 
+  Check, 
+  X, 
+  Bot, 
+  Building2, 
+  User, 
+  Star, 
+  Share2, 
+  Cpu, 
+  CheckCheck,
+  FileText,
+  CreditCard,
+  RefreshCw 
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import ExamigoLogo from '../components/common/ExamigoLogo';
-import { processPakasirCheckout, checkPakasirPaymentStatus } from '../lib/payment';
+import { processMidtransCheckout, checkMidtransPaymentStatus } from '../lib/payment';
+import { applyDynamicTheme } from '../lib/theme';
+import SEO from '../components/common/SEO';
+import styles from '../styles/LandingPage.module.css';
+
+const GoogleGIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+    <path
+      fill="#4285F4"
+      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.16 0 9.94 0 12s.45 3.84 1.25 5.42l4.03-3.15z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+    />
+  </svg>
+);
+
+function GoogleReviewAvatar({ name, avatarUrl }: { name?: string; avatarUrl?: string }) {
+  const [imgError, setImgError] = useState(false);
+  const initial = (name?.charAt(0) || 'U').toUpperCase();
+  const bgColors = ['#1A73E8', '#1E8E3E', '#F9AB00', '#D93025', '#9334E6', '#12B5CB'];
+  const charCode = (name || 'U').charCodeAt(0);
+  const bgColor = bgColors[charCode % bgColors.length];
+
+  if (avatarUrl && !imgError) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name || 'Avatar'}
+        onError={() => setImgError(true)}
+        style={{
+          width: '46px',
+          height: '46px',
+          borderRadius: '50%',
+          objectFit: 'cover',
+          border: '2px solid #FFFFFF',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+          flexShrink: 0,
+        }}
+      />
+    );
+  }
+
+  return (
+    <div
+      style={{
+        width: '46px',
+        height: '46px',
+        borderRadius: '50%',
+        backgroundColor: bgColor,
+        color: '#FFFFFF',
+        fontWeight: 800,
+        fontSize: '18px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        border: '2px solid #FFFFFF',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+        flexShrink: 0,
+      }}
+    >
+      {initial}
+    </div>
+  );
+}
+
+function formatReviewDate(dateStr?: string) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  } catch {
+    return '';
+  }
+}
+
+const TERMINAL_TELEMETRY_LOGS = [
+  { code: 'OP-01', tag: 'SOAL', text: 'Ekstraksi modul ajar tuntas: 25 butir soal valid kunci jawaban', metric: '100% SIAP' },
+  { code: 'OP-02', tag: 'PROKTOR', text: 'Ruang ujian aktif: 45 perangkat terkunci proteksi layar penuh', metric: '0 PELANGGARAN' },
+  { code: 'OP-03', tag: 'KOREKSI', text: 'Koreksi instan selesai: distribusi nilai rapor terhitung seketika', metric: '0.4 DETIK' },
+  { code: 'OP-04', tag: 'REKAP', text: 'Rekapitulasi kelas selesai: berkas nilai siap unduh ke Microsoft Excel', metric: 'EXPORT READY' },
+];
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   const [examCodeInput, setExamCodeInput] = useState('');
+
+  // Dynamic CTA Terminal Telemetry & Live Clock
+  const [terminalLogIndex, setTerminalLogIndex] = useState<number>(0);
+  const [terminalTime, setTerminalTime] = useState<string>('');
+  const [terminalRoleTab, setTerminalRoleTab] = useState<'guru' | 'sekolah'>('guru');
+
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date();
+      setTerminalTime(
+        now.toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        }) + ' WIB'
+      );
+    };
+    updateClock();
+    const timer = setInterval(updateClock, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const logTimer = setInterval(() => {
+      setTerminalLogIndex((prev) => (prev + 1) % TERMINAL_TELEMETRY_LOGS.length);
+    }, 3200);
+    return () => clearInterval(logTimer);
+  }, []);
   
+  // Dynamic CMS Config State
+  const [cmsConfig, setCmsConfig] = useState<any>(null);
+  const [testimonials, setTestimonials] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/public/landing-config')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data) {
+          setCmsConfig(data.data);
+          if (data.data.theme) {
+            applyDynamicTheme(data.data.theme);
+          }
+        }
+      })
+      .catch(err => console.error('Failed to load CMS config, using defaults:', err));
+
+    fetch('/api/public/testimonials')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.data)) {
+          setTestimonials(data.data);
+        }
+      })
+      .catch(err => console.error('Failed to load testimonials:', err));
+  }, []);
+
   // Interactive State
-  const [activeDemoTab, setActiveDemoTab] = useState<'generator' | 'builder' | 'exam' | 'analytics'>('generator');
+  const [activeDemoTab, setActiveDemoTab] = useState<'generator' | 'anticheat' | 'distribution' | 'grading'>('generator');
   const [isAutoPlaying, setIsAutoPlaying] = useState<boolean>(true);
-  const [selectedDemoOption, setSelectedDemoOption] = useState<number>(0); // 0 = A, 1 = B, 2 = C, 3 = D
+  const [selectedDemoOption, setSelectedDemoOption] = useState<number>(1); // Default to B (correct)
   const [activeNavQuestionDemo, setActiveNavQuestionDemo] = useState<number>(12);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
-  // Pakasir Payment Gateway Modal State
+  // Midtrans Payment Gateway Modal State
   const [paymentModalOpen, setPaymentModalOpen] = useState<boolean>(false);
   const [selectedPlan, setSelectedPlan] = useState<'PERSONAL' | 'PRO_AI' | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState<boolean>(false);
@@ -56,7 +204,7 @@ export default function LandingPage() {
   const [paymentError, setPaymentError] = useState<string>('');
   const [verificationStatus, setVerificationStatus] = useState<string>('');
 
-  const handleInitiatePakasirPayment = async (plan: 'PERSONAL' | 'PRO_AI') => {
+  const handleInitiateMidtransPayment = async (plan: 'PERSONAL' | 'PRO_AI') => {
     try {
       setSelectedPlan(plan);
       setPaymentError('');
@@ -64,55 +212,89 @@ export default function LandingPage() {
       setIsProcessingPayment(true);
       setPaymentModalOpen(true);
 
-      const result = await processPakasirCheckout(plan, 'MONTHLY', user || { id: '', email: 'pengajar@examigo.com', name: 'Pengajar Examigo' });
+      const result = await processMidtransCheckout(
+        plan,
+        'MONTHLY',
+        {
+          id: user?.id,
+          email: user?.email || 'guest@examigo.com',
+          name: user?.name || 'Guest User'
+        }
+      );
+
       setActiveOrder(result);
+
+      if (result.snapToken && window.snap) {
+        window.snap.pay(result.snapToken, {
+          onSuccess: () => {
+            setVerificationStatus('Pembayaran Lunas! Akun berhasil di-upgrade.');
+            setTimeout(() => {
+              setPaymentModalOpen(false);
+              navigate('/dashboard');
+            }, 1500);
+          },
+          onPending: () => {
+            setVerificationStatus('Status: Menunggu Pembayaran. Silakan selesaikan transaksi.');
+          },
+          onError: () => {
+            setPaymentError('Pembayaran gagal diproses melalui Midtrans.');
+          },
+          onClose: () => {
+            handleVerifyMidtransStatus();
+          }
+        });
+      }
     } catch (err: any) {
-      setPaymentError(err.message || 'Gagal memproses sesi pembayaran Pakasir');
+      setPaymentError(err.message || 'Gagal memulai transaksi Midtrans');
     } finally {
       setIsProcessingPayment(false);
     }
   };
 
-  const handleVerifyPakasirStatus = async () => {
+  const handleVerifyMidtransStatus = async () => {
     if (!activeOrder?.orderId) return;
     try {
-      setVerificationStatus('Memeriksa status pembayaran di Pakasir...');
-      const res = await checkPakasirPaymentStatus(activeOrder.orderId);
-      if (res.status === 'PAID') {
-        setVerificationStatus('🎉 Pembayaran Lunas! Akun berhasil di-upgrade.');
+      setVerificationStatus('Memeriksa status pembayaran...');
+      const statusRes = await checkMidtransPaymentStatus(activeOrder.orderId);
+      if (statusRes.status === 'PAID') {
+        setVerificationStatus('Pembayaran Lunas! Akun berhasil di-upgrade.');
+        setTimeout(() => {
+          setPaymentModalOpen(false);
+          navigate('/dashboard');
+        }, 1500);
       } else {
-        setVerificationStatus('Status saat ini: Belum dibayar (Pending). Silakan selesaikan pembayaran.');
+        setVerificationStatus('Status: Belum Terbayar (PENDING). Silakan selesaikan pembayaran.');
       }
-    } catch (err: any) {
-      setVerificationStatus('Gagal mengecek status pembayaran.');
+    } catch (err) {
+      setVerificationStatus('Gagal memeriksa status. Coba beberapa saat lagi.');
     }
   };
 
-  // Auto-play slideshow timer for demo tabs (changes every 4 seconds)
+  // Auto-Slide Slideshow Timer (4.5 seconds per slide with dynamic loop)
+  const [timerKey, setTimerKey] = useState<number>(0);
+
   useEffect(() => {
     if (!isAutoPlaying) return;
-
-    const tabs: Array<'generator' | 'builder' | 'exam' | 'analytics'> = ['generator', 'builder', 'exam', 'analytics'];
+    const tabList: ('generator' | 'anticheat' | 'distribution' | 'grading')[] = ['generator', 'anticheat', 'distribution', 'grading'];
     const timer = setInterval(() => {
       setActiveDemoTab((prev) => {
-        const currIndex = tabs.indexOf(prev);
-        const nextIndex = (currIndex + 1) % tabs.length;
-        return tabs[nextIndex];
+        const nextIdx = (tabList.indexOf(prev) + 1) % tabList.length;
+        return tabList[nextIdx];
       });
-    }, 4000);
-
+      setTimerKey((k) => k + 1);
+    }, 4500);
     return () => clearInterval(timer);
-  }, [isAutoPlaying]);
+  }, [isAutoPlaying, timerKey]);
 
-  const handleManualTabClick = (tab: 'generator' | 'builder' | 'exam' | 'analytics') => {
+  const handleManualTabClick = (tab: 'generator' | 'anticheat' | 'distribution' | 'grading') => {
     setActiveDemoTab(tab);
-    setIsAutoPlaying(false); // Pause auto play when user clicks manually
+    setTimerKey((k) => k + 1);
   };
 
   const handleJoinExam = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!examCodeInput.trim()) return;
     const cleanCode = examCodeInput.trim().toUpperCase();
+    if (!cleanCode) return;
     navigate(`/exam-room/${cleanCode}`);
   };
 
@@ -122,64 +304,67 @@ export default function LandingPage() {
 
   const faqs = [
     {
-      q: 'Apakah butuh instalasi aplikasi?',
-      a: 'Tidak. Langsung diakses dari browser HP, Tablet, atau Laptop.'
+      q: 'Bagaimana cara membuat butir soal dari materi saya?',
+      a: 'Cukup unggah dokumen berupa PDF, Word, PowerPoint, atau foto lembar soal. Sistem membaca dan mengekstrak materi secara otomatis untuk menghasilkan variasi butir soal pilihan ganda, isian singkat, dan esai lengkap dengan kunci jawaban.',
     },
     {
-      q: 'Format file apa yang didukung AI?',
-      a: 'PDF, DOCX (Word), PPT (PowerPoint), TXT, dan Foto/Gambar materi.'
+      q: 'Apakah soal dan jawaban bisa diacak per peserta?',
+      a: 'Ya! Fitur Exam Builder secara otomatis mengacak urutan butir soal serta urutan opsi A/B/C/D sehingga setiap siswa menerima susunan lembar ujian yang unik dan meminimalisir potensi contek.',
     },
     {
-      q: 'Bagaimana pencegahan kecurangan?',
-      a: 'Acak urutan soal, acak pilihan A/B/C/D, Fullscreen Mode, & deteksi pindah tab.'
+      q: 'Bagaimana cara kerja Anti-Cheat Mode?',
+      a: 'Pada paket Pro, Ruang Ujian dilengkapi penguncian layar penuh (Fullscreen Lock) dan pendeteksi pindah tab. Jika siswa membuka aplikasi atau tab lain saat ujian berlangsung, sistem langsung mencatat peringatan dan mengunci lembar ujian.',
     },
     {
-      q: 'Apakah hasil ujian bisa di-export ke Excel?',
-      a: 'Bisa. Tersedia format Excel (.xlsx), CSV, dan PDF siap cetak.'
-    }
+      q: 'Apakah bisa ekspor nilai langsung ke format Excel?',
+      a: 'Tentu. Guru dapat mengunduh seluruh data rekapitulasi nilai peserta dalam format file Excel (.xlsx), CSV, maupun mencetak lembar rekapitulasi resmi dalam format PDF.',
+    },
+    {
+      q: 'Apakah siswa perlu membuat akun untuk mengikuti ujian?',
+      a: 'Tidak perlu. Siswa cukup memasukkan Kode Akses Ujian / memindai QR Code dari guru, lalu mengisi nama lengkap dan mulai mengerjakan ujian secara langsung.',
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased selection:bg-indigo-100 selection:text-indigo-900">
+    <div className={styles.pageWrapper}>
+      <SEO 
+        title="Platform Pembuat Soal Ujian Online & CBT Anti-Contek"
+        description="Examigo adalah platform pembuat soal ujian online dan CBT modern. Dilengkapi bank soal otomatis, sistem anti-contek, dan penilaian instan untuk guru dan sekolah."
+        canonical="https://examigo.id/"
+      />
       
       {/* 1. Navbar Header */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200/80 transition-all shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link to="/">
-            <ExamigoLogo size="md" showText={true} />
+      <header className={styles.navbar}>
+        <div className={styles.navbarContainer}>
+          <Link to="/" style={{ textDecoration: 'none' }}>
+            <ExamigoLogo size="md" showText={true} showBadge={true} variant="light" />
           </Link>
 
-          <nav className="hidden md:flex items-center gap-7 text-xs font-bold text-slate-600">
-            <a href="#fitur" className="hover:text-indigo-600 transition-colors">Fitur Utama</a>
-            <a href="#demo" className="hover:text-indigo-600 transition-colors">Simulasi Demo</a>
-            <a href="#cara-kerja" className="hover:text-indigo-600 transition-colors">Cara Kerja</a>
-            <a href="#harga" className="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-extrabold border border-indigo-100 hover:bg-indigo-100 transition-all">Paket Harga</a>
-            <a href="#faq" className="hover:text-indigo-600 transition-colors">FAQ</a>
+          <nav className={styles.navLinks}>
+            <a href="#fitur" className={styles.navLink}>Fitur</a>
+            <a href="#cara-kerja" className={styles.navLink}>Alur Kerja</a>
+            <a href="#target" className={styles.navLink}>Pengguna</a>
+            {testimonials && testimonials.length > 0 && (
+              <a href="#testimoni" className={styles.navLink}>Ulasan</a>
+            )}
+            <a href="#harga" className={styles.priceTagBadge}>Paket Harga</a>
+            <a href="#faq" className={styles.navLink}>FAQ</a>
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className={styles.navActions}>
             {isAuthenticated ? (
-              <Link
-                to="/"
-                className="saas-button-primary px-4 py-2 text-xs font-bold flex items-center gap-2 shadow-sm"
-              >
-                <span>Dashboard</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+              <Link to="/dashboard" className={styles.registerBtn}>
+                <span>Buka Dashboard</span>
+                <ArrowRight style={{ width: '14px', height: '14px' }} />
               </Link>
             ) : (
               <>
-                <Link
-                  to="/login"
-                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-indigo-600 transition-all"
-                >
+                <Link to="/login" className={styles.loginBtn}>
                   Masuk
                 </Link>
-                <Link
-                  to="/register"
-                  className="saas-button-primary px-4 py-2 text-xs font-bold flex items-center gap-1.5 shadow-sm"
-                >
-                  <span>Daftar Gratis</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                <Link to="/register" className={styles.registerBtn}>
+                  <span>Mulai Gratis</span>
+                  <ArrowRight style={{ width: '14px', height: '14px' }} />
                 </Link>
               </>
             )}
@@ -187,970 +372,1262 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* 2. Hero Section - Vector Icons Only */}
-      <section className="relative pt-10 pb-16 lg:pt-16 lg:pb-24 overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-b from-indigo-100/60 to-transparent pointer-events-none -z-10 rounded-full blur-3xl opacity-70" />
+      {/* 2. Hero Section */}
+      <section className={styles.heroSection}>
+        {/* Modern Architectural Grid Pattern & Ambient Glow (Zero GPU Glitch) */}
+        <div className={styles.heroGridPattern} />
+        <div className={styles.heroAmbientGlow} />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center space-y-5 max-w-3xl mx-auto">
+        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 1.5rem', position: 'relative', zIndex: 10 }}>
+          <div className={styles.heroSplitGrid}>
             
-            {/* Top Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-indigo-200 text-indigo-700 text-xs font-bold shadow-xs">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              <span>AI Online Exam Builder Platform</span>
+            {/* Left Column: Headline, Copy, Actions */}
+            <div className={styles.heroLeftCol}>
+              {/* Headline */}
+              <h1 className={styles.heroHeadlineSplit}>
+                {cmsConfig?.hero?.headlineMain || 'Bikin Soal & Ujian Online'} <br />
+                <span className={styles.heroHeadlineHighlight}>{cmsConfig?.hero?.headlineHighlight || '10x Lebih Cepat'}</span>
+                <Sparkles className="inline w-6 h-6 ml-1.5 text-amber-400 align-middle" />
+              </h1>
+
+              {/* Subtitle */}
+              <p className={styles.heroSubtitleSplit}>
+                {cmsConfig?.hero?.subtitle || 'Unggah materi pelajaran (PDF, Word, PPTX, atau Foto). Otomatis meracik bank soal, mengacak nomor & opsi, mengunci layar anti-contek, serta menilai hasil siswa secara instan.'}
+              </p>
+
+              {/* Dual Conversion Engine */}
+              <div className={styles.heroActionsSplit}>
+                <Link to={isAuthenticated ? '/ai-generator' : '/register'} className={styles.primaryCtaBtn}>
+                  <Sparkles style={{ width: '16px', height: '16px', color: 'var(--theme-mint-subtle, #D1FAE5)' }} />
+                  <span>{cmsConfig?.hero?.primaryCtaText || 'Coba Generator Soal Gratis'}</span>
+                  <ArrowRight style={{ width: '16px', height: '16px' }} />
+                </Link>
+
+                {/* Form Ikut Ujian Siswa */}
+                <form onSubmit={handleJoinExam} className={styles.joinExamForm}>
+                  <input
+                    type="text"
+                    value={examCodeInput}
+                    onChange={(e) => setExamCodeInput(e.target.value)}
+                    placeholder="KODE AKSES UJIAN..."
+                    className={styles.joinExamInput}
+                  />
+                  <button type="submit" className={styles.joinExamSubmit}>
+                    <span>Ikut Ujian</span>
+                    <Play style={{ width: '14px', height: '14px', fill: 'currentColor' }} />
+                  </button>
+                </form>
+              </div>
+
+              {/* Trust Highlights */}
+              <div className={styles.trustBadgeRowSplit}>
+                <div className={styles.trustBadgeItem}>
+                  <CheckCircle2 style={{ width: '15px', height: '15px', color: 'var(--theme-primary, #10B981)' }} /> Web & HP Friendly
+                </div>
+                <div className={styles.trustBadgeItem}>
+                  <CheckCircle2 style={{ width: '15px', height: '15px', color: 'var(--theme-primary, #10B981)' }} /> Anti-Cheat Auto Save
+                </div>
+                <div className={styles.trustBadgeItem}>
+                  <CheckCircle2 style={{ width: '15px', height: '15px', color: 'var(--theme-primary, #10B981)' }} /> Ekspor Rapih Excel & PDF
+                </div>
+              </div>
             </div>
 
-            {/* Main Headline */}
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.15]">
-              Buat Soal & Ujian Online <span className="bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">10x Lebih Cepat</span>
-            </h1>
+            {/* Right Column: Interactive Live AI Mockup Card */}
+            <div className={styles.heroRightCol}>
+              <div className={styles.aiMockupCard}>
+                
+                {/* Mockup Header Bar */}
+                <div className={styles.mockupHeader}>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-rose-500 inline-block" />
+                    <span className="w-3 h-3 rounded-full bg-amber-500 inline-block" />
+                    <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" />
+                    <span className="text-[11px] font-bold text-slate-400 ml-2">Examigo Smart Engine v2.4</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-black">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" /> Live Ready
+                  </div>
+                </div>
 
-            {/* Subtitle */}
-            <p className="text-sm sm:text-base text-slate-600 font-semibold max-w-xl mx-auto">
-              Upload materi (PDF/Word/PPT/Foto). AI membaca materi, membuatkan soal, mengacak pilihan, dan menilai otomatis.
+                {/* File Upload Scanner Preview */}
+                <div className={styles.mockupScannerBox}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-white">Modul_Fisika_Kelas_10.pdf</p>
+                        <p className="text-[10px] text-slate-400 font-semibold">12 Halaman • 2.4 MB • Ekstraksi Otomatis</p>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-black border border-emerald-500/30">
+                      100% Selesai
+                    </span>
+                  </div>
+
+                  {/* Laser Scan Progress Bar */}
+                  <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden relative">
+                    <div className={styles.scanProgressBar} />
+                  </div>
+                </div>
+
+                {/* Generated Question Sample Preview */}
+                <div className={styles.mockupQuestionCard}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-black tracking-wider uppercase text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
+                      Soal #1 • Pilihan Ganda
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400">Tingkat Kesulitan: Sedang</span>
+                  </div>
+                  
+                  <p className="text-xs font-bold text-slate-100 leading-relaxed mb-3">
+                    Sebuah mobil bermassa 1.200 kg melaju dengan kecepatan 20 m/s. Berapakah energi kinetik yang dimiliki mobil tersebut?
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-semibold">
+                    <div className="p-2 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300 flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-md bg-slate-700 text-white font-black flex items-center justify-center text-[10px]">A</span>
+                      <span>120.000 Joule</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-md bg-emerald-600 text-white font-black flex items-center justify-center text-[10px]">B</span>
+                        <span className="font-bold">240.000 Joule</span>
+                      </div>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    </div>
+                    <div className="p-2 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300 flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-md bg-slate-700 text-white font-black flex items-center justify-center text-[10px]">C</span>
+                      <span>360.000 Joule</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300 flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-md bg-slate-700 text-white font-black flex items-center justify-center text-[10px]">D</span>
+                      <span>480.000 Joule</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Floating Stat Mini Pills */}
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center gap-2 text-[11px] font-black text-slate-300">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>20 Soal Teracik dalam 4.2 Detik</span>
+                  </div>
+                  <Link 
+                    to={isAuthenticated ? '/ai-generator' : '/register'}
+                    className="text-[11px] font-black text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors"
+                  >
+                    <span>Coba Sekarang</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Stats Section */}
+      <section className={styles.statsSection}>
+        <div className={styles.statsGrid}>
+          <div>
+            <span className={styles.statNumber}>10,000+</span>
+            <span className={styles.statLabel}>Soal Berhasil Dibuat</span>
+          </div>
+          <div>
+            <span className={styles.statNumber}>99.8%</span>
+            <span className={styles.statLabel}>Akurasi Auto-Grading</span>
+          </div>
+          <div>
+            <span className={styles.statNumber}>&lt; 2 Menit</span>
+            <span className={styles.statLabel}>Bikin Ujian Lengkap</span>
+          </div>
+          <div>
+            <span className={styles.statNumber}>100%</span>
+            <span className={styles.statLabel}>Standar Kurikulum Nasional</span>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. Comparison Section */}
+      <section className={styles.comparisonSection}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Kenapa Pengajar Beralih ke Examigo?</h2>
+          <p className={styles.sectionDesc}>Tinggalkan cara konvensional yang menyita waktu dan beralih ke otomatisasi cerdas.</p>
+        </div>
+
+        <div className={styles.comparisonGrid}>
+          {/* Cara Manual */}
+          <div className={styles.cardManual}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid #FEE2E2', paddingBottom: '1rem' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FEE2E2', color: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 }}>
+                  <X style={{ width: '24px', height: '24px' }} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#DC2626' }}>Cara Manual Tradisional</h3>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748B', fontWeight: 700 }}>Proses lambat, rentan kesalahan, melelahkan</p>
+                </div>
+              </div>
+
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '14px', color: '#334155', fontWeight: 600 }}>
+                <li style={{ display: 'flex', gap: '10px' }}><X style={{ width: '16px', height: '16px', color: '#DC2626', flexShrink: 0, marginTop: '2px' }} /> <span><strong>Mengetik soal dari awal:</strong> Menghabiskan 3-4 jam hanya untuk menyusun 30 butir soal ulangan harian.</span></li>
+                <li style={{ display: 'flex', gap: '10px' }}><X style={{ width: '16px', height: '16px', color: '#DC2626', flexShrink: 0, marginTop: '2px' }} /> <span><strong>Rawan kecurangan:</strong> Urutan soal sama untuk semua siswa, mudah saling contek.</span></li>
+                <li style={{ display: 'flex', gap: '10px' }}><X style={{ width: '16px', height: '16px', color: '#DC2626', flexShrink: 0, marginTop: '2px' }} /> <span><strong>Koreksi lembar jawaban manual:</strong> Guru harus menghabiskan malam hari mengoreksi ratusan lembar jawaban.</span></li>
+                <li style={{ display: 'flex', gap: '10px' }}><X style={{ width: '16px', height: '16px', color: '#DC2626', flexShrink: 0, marginTop: '2px' }} /> <span><strong>Bank soal berantakan:</strong> Arsip tercecer di berbagai flashdisk dan dokumen Word tanpa kategori.</span></li>
+              </ul>
+            </div>
+
+            <div style={{ padding: '0.75rem', borderRadius: '12px', background: '#FEF2F2', color: '#B91C1C', fontSize: '12px', fontWeight: 700, textAlign: 'center', border: '1px solid #FECACA' }}>
+              Waktu terbuang rata-rata: <strong style={{ color: '#991B1B' }}>5-6 Jam per ujian</strong>
+            </div>
+          </div>
+
+          {/* Solusi Examigo */}
+          <div className={styles.cardExamigo}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid var(--theme-mint-light, #ECFDF5)', paddingBottom: '1rem' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--theme-mint-subtle, #D1FAE5)', color: 'var(--theme-primary, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 }}>
+                  <CheckCircle2 style={{ width: '24px', height: '24px' }} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: 'var(--theme-primary-dark, #064E3B)' }}>Dengan Platform Examigo</h3>
+                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--theme-primary, #059669)', fontWeight: 700 }}>10x Lebih Cepat, Otomatis & Terstruktur</p>
+                </div>
+              </div>
+
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '14px', color: 'var(--theme-primary-dark, #064E3B)', fontWeight: 700 }}>
+                <li style={{ display: 'flex', gap: '10px' }}><Check style={{ width: '16px', height: '16px', color: 'var(--theme-primary, #059669)', flexShrink: 0, marginTop: '2px' }} /> <span><strong>Ekstraksi materi kilat:</strong> Cukup upload PDF/Word/Foto materi, sistem membuat soal komprehensif dalam hitungan detik.</span></li>
+                <li style={{ display: 'flex', gap: '10px' }}><Check style={{ width: '16px', height: '16px', color: 'var(--theme-primary, #059669)', flexShrink: 0, marginTop: '2px' }} /> <span><strong>Anti-Cheat otomatis:</strong> Sistem otomatis mengacak nomor soal & opsi A/B/C/D per siswa serta mengunci layar.</span></li>
+                <li style={{ display: 'flex', gap: '10px' }}><Check style={{ width: '16px', height: '16px', color: 'var(--theme-primary, #059669)', flexShrink: 0, marginTop: '2px' }} /> <span><strong>Auto-Grading instan:</strong> Nilai PG & koreksi esai langsung terbit begitu siswa selesai submit.</span></li>
+                <li style={{ display: 'flex', gap: '10px' }}><Check style={{ width: '16px', height: '16px', color: 'var(--theme-primary, #059669)', flexShrink: 0, marginTop: '2px' }} /> <span><strong>Bank soal rapi & ekspor Excel:</strong> Tersimpan terpusat dengan filter mata pelajaran dan siap download ke Excel/PDF.</span></li>
+              </ul>
+            </div>
+
+            <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'var(--theme-mint-light, #ECFDF5)', color: 'var(--theme-primary-dark, #065F46)', fontSize: '12px', fontWeight: 700, textAlign: 'center', border: '1px solid var(--theme-border, #A7F3D0)' }}>
+              Waktu pengerjaan efisien: <strong style={{ color: 'var(--theme-text-muted, #047857)', fontSize: '14px' }}>&lt; 2 Menit selesai</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 6 & 7. Split-Screen Interactive Product Showcase (No Grid Cards) */}
+      <section id="fitur" className={styles.showcaseSection}>
+        <span id="cara-kerja" style={{ display: 'block', position: 'relative', top: '-90px', visibility: 'hidden' }} />
+        <div className={styles.sectionHeader} style={{ marginBottom: '3rem' }}>
+          <h2 className={styles.sectionTitle}>Satu Sistem Utuh dari Soal Hingga Rapor</h2>
+          <p className={styles.sectionDesc}>Tanpa ribet bikin kisi-kisi manual, tanpa repot mengoreksi satu per satu. Klik tahapan di bawah untuk melihat simulasinya secara nyata.</p>
+        </div>
+
+        <div 
+          className={styles.splitShowcase}
+          onMouseEnter={() => setIsAutoPlaying(false)}
+          onMouseLeave={() => setIsAutoPlaying(true)}
+        >
+          {/* Left: Minimalist Feature & Workflow Navigation */}
+          <div className={styles.showcaseNavList}>
+            {/* Nav 1: Generator */}
+            <div 
+              onClick={() => handleManualTabClick('generator')}
+              className={`${styles.showcaseNavItem} ${activeDemoTab === 'generator' ? styles.showcaseNavItemActive : ''}`}
+              role="button"
+              tabIndex={0}
+            >
+              <span className={styles.navItemIndex}>01</span>
+              <div className={styles.navItemContent}>
+                <div className={styles.navItemTitleRow}>
+                  <span className={styles.navItemTitle}>Generator Soal Silabus</span>
+                </div>
+                <p className={styles.navItemDesc}>
+                  Unggah modul PDF, Word, PPT, atau foto soal fisik. Butir soal HOTS dan kunci jawaban tersusun instan.
+                </p>
+              </div>
+              {activeDemoTab === 'generator' && (
+                <div key={`generator-${timerKey}`} className={styles.navItemProgressBar} />
+              )}
+            </div>
+
+            {/* Nav 2: Anti-Cheat Guard */}
+            <div 
+              onClick={() => handleManualTabClick('anticheat')}
+              className={`${styles.showcaseNavItem} ${activeDemoTab === 'anticheat' ? styles.showcaseNavItemActive : ''}`}
+              role="button"
+              tabIndex={0}
+            >
+              <span className={styles.navItemIndex}>02</span>
+              <div className={styles.navItemContent}>
+                <div className={styles.navItemTitleRow}>
+                  <span className={styles.navItemTitle}>Anti-Cheat Guard</span>
+                </div>
+                <p className={styles.navItemDesc}>
+                  Kunci layar penuh otomatis, deteksi pindah tab & screenshot, serta auto-save berkala real-time.
+                </p>
+              </div>
+              {activeDemoTab === 'anticheat' && (
+                <div key={`anticheat-${timerKey}`} className={styles.navItemProgressBar} />
+              )}
+            </div>
+
+            {/* Nav 3: Distribusi Kode Akses & QR */}
+            <div 
+              onClick={() => handleManualTabClick('distribution')}
+              className={`${styles.showcaseNavItem} ${activeDemoTab === 'distribution' ? styles.showcaseNavItemActive : ''}`}
+              role="button"
+              tabIndex={0}
+            >
+              <span className={styles.navItemIndex}>03</span>
+              <div className={styles.navItemContent}>
+                <div className={styles.navItemTitleRow}>
+                  <span className={styles.navItemTitle}>Distribusi Kode Akses & QR</span>
+                </div>
+                <p className={styles.navItemDesc}>
+                  Siswa langsung bergabung lewat browser smartphone atau laptop tanpa perlu registrasi akun.
+                </p>
+              </div>
+              {activeDemoTab === 'distribution' && (
+                <div key={`distribution-${timerKey}`} className={styles.navItemProgressBar} />
+              )}
+            </div>
+
+            {/* Nav 4: Koreksi Otomatis & Rekap */}
+            <div 
+              onClick={() => handleManualTabClick('grading')}
+              className={`${styles.showcaseNavItem} ${activeDemoTab === 'grading' ? styles.showcaseNavItemActive : ''}`}
+              role="button"
+              tabIndex={0}
+            >
+              <span className={styles.navItemIndex}>04</span>
+              <div className={styles.navItemContent}>
+                <div className={styles.navItemTitleRow}>
+                  <span className={styles.navItemTitle}>Koreksi Otomatis & Excel</span>
+                </div>
+                <p className={styles.navItemDesc}>
+                  Koreksi seketika saat submit. Dapatkan analitik daya beda dan unduh berkas rekap nilai format .xlsx resmi.
+                </p>
+              </div>
+              {activeDemoTab === 'grading' && (
+                <div key={`grading-${timerKey}`} className={styles.navItemProgressBar} />
+              )}
+            </div>
+          </div>
+
+          {/* Right: Single Sleek Dynamic Monitor Frame */}
+          <div className={styles.showcaseMonitorFrame}>
+            {/* Window Bar */}
+            <div className={styles.monitorWindowBar}>
+              <div className={styles.windowDots}>
+                <span className={styles.dotRed} />
+                <span className={styles.dotYellow} />
+                <span className={styles.dotGreen} />
+              </div>
+              <div className={styles.windowAddressBar}>
+                {activeDemoTab === 'generator' && 'examigo.id/app/generator?doc=modul_biologi.pdf'}
+                {activeDemoTab === 'anticheat' && 'examigo.id/exam/room?mode=proctor_secure'}
+                {activeDemoTab === 'distribution' && 'examigo.id/exam/share?code=892410'}
+                {activeDemoTab === 'grading' && 'examigo.id/reports/rekap_nilai_sma.xlsx'}
+              </div>
+              <div className={styles.windowLiveBadge}>
+                <span className={styles.livePulseDot} />
+                <span>
+                  {activeDemoTab === 'generator' && 'Ekstraksi Selesai'}
+                  {activeDemoTab === 'anticheat' && 'Ruang Terproteksi'}
+                  {activeDemoTab === 'distribution' && '36 Siswa Masuk'}
+                  {activeDemoTab === 'grading' && '100% Terkoreksi'}
+                </span>
+              </div>
+            </div>
+
+            {/* Monitor Content Area */}
+            <div className={styles.monitorContent}>
+              {/* Screen 1: Generator */}
+              {activeDemoTab === 'generator' && (
+                <div key="generator" className={styles.monitorScreenFade}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #334155', paddingBottom: '0.875rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', fontSize: '0.8125rem', color: '#E2E8F0', fontWeight: 600 }}>
+                      <FileText style={{ width: '16px', height: '16px', color: '#10B981' }} />
+                      <span>Modul_Biologi_Sel_SMA.pdf</span>
+                      <span style={{ fontSize: '0.6875rem', color: '#64748B' }}>1.4 MB</span>
+                    </div>
+                    <span style={{ fontSize: '0.6875rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34D399', padding: '0.25rem 0.625rem', borderRadius: '6px', fontWeight: 700, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                      20 Butir Soal Terkompilasi
+                    </span>
+                  </div>
+
+                  <div style={{ background: '#0F172A', border: '1px solid #1E293B', borderRadius: '12px', padding: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Soal No. 1 • Pilihan Ganda (HOTS)</span>
+                      <span style={{ fontSize: '0.6875rem', color: '#10B981', fontWeight: 700 }}>Tingkat: C4 Analisis</span>
+                    </div>
+                    <p style={{ margin: '0 0 1rem 0', fontSize: '0.875rem', lineHeight: 1.6, color: '#F1F5F9', fontWeight: 500 }}>
+                      Bagian nefron ginjal yang berfungsi utama untuk proses filtrasi darah sehingga menghasilkan filtrat glomerulus (urine primer) adalah...
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8125rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', padding: '0.625rem 0.875rem', borderRadius: '8px', background: '#1E293B', color: '#94A3B8' }}>
+                        <span style={{ fontWeight: 700, width: '24px' }}>A.</span> Tubulus Kontortus Proksimal
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 0.875rem', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.4)', color: '#FFFFFF', fontWeight: 600 }}>
+                        <div><span style={{ fontWeight: 700, width: '24px', color: '#34D399' }}>B.</span> Glomerulus & Kapsula Bowman</div>
+                        <span style={{ fontSize: '0.6875rem', color: '#34D399', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Check style={{ width: '12px', height: '12px' }} /> Kunci Valid
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', padding: '0.625rem 0.875rem', borderRadius: '8px', background: '#1E293B', color: '#94A3B8' }}>
+                        <span style={{ fontWeight: 700, width: '24px' }}>C.</span> Lengkung Henle Asendens
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94A3B8' }}>
+                    <span>Kompatibel: Dokumen, Slide PPT, & Foto Lembar Soal</span>
+                    <span style={{ color: '#10B981', fontWeight: 700 }}>Proses: ±15 Detik</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Screen 2: Anti-Cheat */}
+              {activeDemoTab === 'anticheat' && (
+                <div key="anticheat" className={styles.monitorScreenFade}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #334155', paddingBottom: '0.875rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', fontSize: '0.8125rem', color: '#E2E8F0', fontWeight: 600 }}>
+                      <ShieldCheck style={{ width: '18px', height: '18px', color: '#10B981' }} />
+                      <span>Proctor Guardian Engine</span>
+                    </div>
+                    <span style={{ fontSize: '0.6875rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34D399', padding: '0.25rem 0.625rem', borderRadius: '6px', fontWeight: 700, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                      Status: Terkunci & Diawasi
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                    <div style={{ background: '#0F172A', border: '1px solid #1E293B', borderRadius: '10px', padding: '0.875rem', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.6875rem', color: '#94A3B8', marginBottom: '4px' }}>Layar Penuh</div>
+                      <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#34D399' }}>Terkunci 100%</div>
+                    </div>
+                    <div style={{ background: '#0F172A', border: '1px solid #1E293B', borderRadius: '10px', padding: '0.875rem', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.6875rem', color: '#94A3B8', marginBottom: '4px' }}>Pindah Tab</div>
+                      <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#F1F5F9' }}>0 Terdeteksi</div>
+                    </div>
+                    <div style={{ background: '#0F172A', border: '1px solid #1E293B', borderRadius: '10px', padding: '0.875rem', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.6875rem', color: '#94A3B8', marginBottom: '4px' }}>Auto-Save</div>
+                      <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#34D399' }}>Real-Time Sync</div>
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#0F172A', border: '1px solid #1E293B', borderRadius: '12px', padding: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#E2E8F0', fontWeight: 600 }}>Tampilan Lembar Peserta (Ujian Berlangsung)</span>
+                      <span style={{ fontSize: '0.6875rem', fontFamily: 'monospace', background: '#1E293B', padding: '2px 8px', borderRadius: '4px', color: '#F59E0B' }}>
+                        Sisa: 42:18
+                      </span>
+                    </div>
+                    <div style={{ background: '#1E293B', borderRadius: '8px', padding: '0.875rem', fontSize: '0.75rem', color: '#94A3B8', borderLeft: '3px solid #F59E0B', lineHeight: 1.6 }}>
+                      <strong style={{ color: '#F8FAFC' }}>Kebijakan Integritas:</strong> Siswa yang keluar dari mode layar penuh atau membuka tab/aplikasi lain otomatis menerima peringatan proktor dan tercatat pada berita acara pengawasan.
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94A3B8' }}>
+                    <span>Anti-Inspect Element & Blokir Copy-Paste</span>
+                    <span style={{ color: '#34D399', fontWeight: 700 }}>Standar Evaluasi Resmi</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Screen 3: Distribution */}
+              {activeDemoTab === 'distribution' && (
+                <div key="distribution" className={styles.monitorScreenFade}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #334155', paddingBottom: '0.875rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', fontSize: '0.8125rem', color: '#E2E8F0', fontWeight: 600 }}>
+                      <Share2 style={{ width: '16px', height: '16px', color: '#10B981' }} />
+                      <span>Gerbang Masuk Peserta</span>
+                    </div>
+                    <span style={{ fontSize: '0.6875rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34D399', padding: '0.25rem 0.625rem', borderRadius: '6px', fontWeight: 700, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                      Room ID: #BIO-SMA1
+                    </span>
+                  </div>
+
+                  <div style={{ background: '#0F172A', border: '1px solid #1E293B', borderRadius: '12px', padding: '1.5rem', textAlign: 'center' }}>
+                    <span style={{ fontSize: '0.6875rem', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>Kode Akses 6-Digit Siswa</span>
+                    <div style={{ fontSize: '2.25rem', fontWeight: 900, fontFamily: 'monospace', letterSpacing: '0.25em', color: '#10B981', margin: '0.5rem 0 0.75rem 0' }}>
+                      892 410
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748B' }}>
+                      Atau bagikan tautan langsung: <span style={{ color: '#38BDF8', fontFamily: 'monospace' }}>examigo.id/join/892410</span>
+                    </p>
+                  </div>
+
+                  <div style={{ background: '#0F172A', border: '1px solid #1E293B', borderRadius: '12px', padding: '1rem 1.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.8125rem', color: '#E2E8F0', fontWeight: 600 }}>Peserta Tergabung di Ruang Tunggu</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#34D399' }}>36 / 36 Siswa</span>
+                    </div>
+                    <div style={{ background: '#1E293B', height: '8px', borderRadius: '9999px', overflow: 'hidden' }}>
+                      <div style={{ width: '100%', height: '100%', background: '#10B981' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6875rem', color: '#64748B', marginTop: '0.5rem' }}>
+                      <span>Siap Dimulai Bersama</span>
+                      <span>Mendukung Android, iOS, Windows, Mac</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94A3B8' }}>
+                    <span>Tanpa Registrasi Akun Bagi Siswa</span>
+                    <span style={{ color: '#10B981', fontWeight: 700 }}>Tinggal Masuk & Kerjakan</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Screen 4: Grading & Reports */}
+              {activeDemoTab === 'grading' && (
+                <div key="grading" className={styles.monitorScreenFade}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #334155', paddingBottom: '0.875rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', fontSize: '0.8125rem', color: '#E2E8F0', fontWeight: 600 }}>
+                      <BarChart2 style={{ width: '16px', height: '16px', color: '#10B981' }} />
+                      <span>Hasil Rekapitulasi & Analitik</span>
+                    </div>
+                    <span style={{ fontSize: '0.6875rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34D399', padding: '0.25rem 0.625rem', borderRadius: '6px', fontWeight: 700, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                      100% Selesai Dinilai
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '0.75rem' }}>
+                    <div style={{ background: '#0F172A', border: '1px solid #1E293B', borderRadius: '12px', padding: '1.25rem' }}>
+                      <span style={{ fontSize: '0.6875rem', color: '#94A3B8', textTransform: 'uppercase', fontWeight: 700 }}>Rata-rata Nilai Kelas</span>
+                      <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#10B981', lineHeight: 1.1, marginTop: '4px' }}>
+                        88.5 <span style={{ fontSize: '1rem', color: '#64748B', fontWeight: 600 }}>/ 100</span>
+                      </div>
+                      <span style={{ fontSize: '0.6875rem', color: '#34D399', fontWeight: 600, display: 'block', marginTop: '4px' }}>
+                        ✓ 35 dari 36 Siswa Lulus KKM (75.0)
+                      </span>
+                    </div>
+                    <div style={{ background: '#0F172A', border: '1px solid #1E293B', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                        <span style={{ color: '#94A3B8' }}>Nilai Tertinggi</span>
+                        <span style={{ fontWeight: 700, color: '#F8FAFC' }}>98.0</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                        <span style={{ color: '#94A3B8' }}>Nilai Terendah</span>
+                        <span style={{ fontWeight: 700, color: '#F8FAFC' }}>72.5</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                        <span style={{ color: '#94A3B8' }}>Durasi Rerata</span>
+                        <span style={{ fontWeight: 700, color: '#F8FAFC' }}>34 Menit</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#0F172A', border: '1px solid #1E293B', borderRadius: '12px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <FileText style={{ width: '20px', height: '20px', color: '#10B981' }} />
+                      <div>
+                        <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#F8FAFC' }}>Rekap_Nilai_Biologi_XI_IPA_1.xlsx</div>
+                        <div style={{ fontSize: '0.6875rem', color: '#64748B' }}>Format resmi siap setor kurikulum sekolah</div>
+                      </div>
+                    </div>
+                    <span style={{ background: '#10B981', color: '#064E3B', padding: '0.375rem 0.875rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Download style={{ width: '14px', height: '14px' }} /> 1-Klik Unduh
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94A3B8' }}>
+                    <span>Koreksi Otomatis Pilihan Ganda & Analisis Butir</span>
+                    <span style={{ color: '#10B981', fontWeight: 700 }}>Format Excel & PDF</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 8. Target Persona ("Untuk Siapa" - Direct & To the Point) */}
+      <section id="target" className={styles.personaSection}>
+        <div className={styles.sectionHeader} style={{ marginBottom: '3rem' }}>
+          <h2 className={styles.sectionTitle}>Untuk Siapa Saja Examigo Dibuat?</h2>
+          <p className={styles.sectionDesc}>Solusi praktis dan terpadu bagi setiap penyelenggara evaluasi belajar.</p>
+        </div>
+
+        <div className={styles.personaDirectGrid}>
+          {/* 1. Guru & Dosen */}
+          <div className={styles.personaDirectCard}>
+            <div className={styles.personaDirectIconBox}>
+              <GraduationCap style={{ width: '22px', height: '22px', color: '#059669' }} />
+            </div>
+            <h3 className={styles.personaDirectTitle}>Guru & Dosen</h3>
+            <p className={styles.personaDirectDesc}>
+              Ulangan harian, tugas mandiri, dan kuis kelas tanpa lembur ketik naskah soal.
+            </p>
+            <ul className={styles.personaDirectList}>
+              <li className={styles.personaDirectItem}>
+                <Check className={styles.personaDirectCheck} />
+                <span>Buat soal otomatis dari modul & silabus</span>
+              </li>
+              <li className={styles.personaDirectItem}>
+                <Check className={styles.personaDirectCheck} />
+                <span>Siswa ujian langsung via browser HP / laptop</span>
+              </li>
+              <li className={styles.personaDirectItem}>
+                <Check className={styles.personaDirectCheck} />
+                <span>Nilai terkoreksi instan & siap ekspor ke rapor</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* 2. Sekolah & Kampus */}
+          <div className={styles.personaDirectCard}>
+            <div className={styles.personaDirectIconBox}>
+              <BookOpen style={{ width: '22px', height: '22px', color: '#059669' }} />
+            </div>
+            <h3 className={styles.personaDirectTitle}>Sekolah & Kampus</h3>
+            <p className={styles.personaDirectDesc}>
+              Standarisasi UTS, UAS, dan ujian kelulusan mandiri dengan proteksi proktor ketat.
+            </p>
+            <ul className={styles.personaDirectList}>
+              <li className={styles.personaDirectItem}>
+                <Check className={styles.personaDirectCheck} />
+                <span>Bank soal institusi terpadu antarguru</span>
+              </li>
+              <li className={styles.personaDirectItem}>
+                <Check className={styles.personaDirectCheck} />
+                <span>Proteksi layar penuh & deteksi pindah tab</span>
+              </li>
+              <li className={styles.personaDirectItem}>
+                <Check className={styles.personaDirectCheck} />
+                <span>Hemat 100% anggaran fotokopi & lembar kertas</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* 3. Bimbel & Kursus */}
+          <div className={styles.personaDirectCard}>
+            <div className={styles.personaDirectIconBox}>
+              <Users style={{ width: '22px', height: '22px', color: '#059669' }} />
+            </div>
+            <h3 className={styles.personaDirectTitle}>Bimbel & Kursus</h3>
+            <p className={styles.personaDirectDesc}>
+              Simulasi tryout akbar skala ribuan siswa serentak dengan ranking otomatis.
+            </p>
+            <ul className={styles.personaDirectList}>
+              <li className={styles.personaDirectItem}>
+                <Check className={styles.personaDirectCheck} />
+                <span>Kapasitas ribuan peserta pengerjaan serentak</span>
+              </li>
+              <li className={styles.personaDirectItem}>
+                <Check className={styles.personaDirectCheck} />
+                <span>Leaderboard skor langsung seketika submit</span>
+              </li>
+              <li className={styles.personaDirectItem}>
+                <Check className={styles.personaDirectCheck} />
+                <span>Analisis daya beda butir soal & topik remedial</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* 4. HRD & Perusahaan */}
+          <div className={styles.personaDirectCard}>
+            <div className={styles.personaDirectIconBox}>
+              <Building2 style={{ width: '22px', height: '22px', color: '#059669' }} />
+            </div>
+            <h3 className={styles.personaDirectTitle}>HRD & Perusahaan</h3>
+            <p className={styles.personaDirectDesc}>
+              Tes seleksi calon pegawai baru dan asesmen kompetensi pelatihan internal.
+            </p>
+            <ul className={styles.personaDirectList}>
+              <li className={styles.personaDirectItem}>
+                <Check className={styles.personaDirectCheck} />
+                <span>Uji kompetensi objektif tanpa instalasi aplikasi</span>
+              </li>
+              <li className={styles.personaDirectItem}>
+                <Check className={styles.personaDirectCheck} />
+                <span>Audit log kecurangan & validasi integritas</span>
+              </li>
+              <li className={styles.personaDirectItem}>
+                <Check className={styles.personaDirectCheck} />
+                <span>Penerbitan rekap hasil & sertifikat otomatis</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* 8.5. Testimonials & 5-Star Reviews (Google / Verified Review Style) */}
+      {testimonials && testimonials.length > 0 && (
+        <section
+          id="testimoni"
+          style={{
+            padding: '5.5rem 1.5rem',
+            backgroundColor: 'var(--theme-bg, #F0FDF4)',
+            borderTop: '1px solid var(--theme-border, #A7F3D0)',
+          }}
+        >
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Dipercaya Ribuan Guru & Institusi di Indonesia</h2>
+            <p className={styles.sectionDesc}>
+              Simak pengalaman langsung para pendidik yang telah merevolusi proses evaluasi belajar bersama Examigo.
+            </p>
+          </div>
+
+          <div
+            style={{
+              maxWidth: testimonials.length === 1 ? '580px' : testimonials.length === 2 ? '880px' : '1140px',
+              margin: '0 auto',
+              display: testimonials.length === 1 ? 'block' : 'grid',
+              gridTemplateColumns: testimonials.length === 1 ? undefined : 'repeat(auto-fit, minmax(320px, 1fr))',
+              gap: '1.75rem',
+            }}
+          >
+            {testimonials.map((item, idx) => (
+              <div
+                key={item.id || idx}
+                style={{
+                  background: '#FFFFFF',
+                  borderRadius: '20px',
+                  padding: '1.75rem',
+                  border: '1.5px solid var(--theme-border, #A7F3D0)',
+                  boxShadow: '0 10px 30px -5px rgba(6, 78, 59, 0.08), 0 4px 10px -2px rgba(0, 0, 0, 0.03)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '1.25rem',
+                  position: 'relative',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                }}
+              >
+                {/* Top: Profile Header with Avatar, Name, Role & Google Badge */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+                    <GoogleReviewAvatar name={item.userName} avatarUrl={item.userAvatar} />
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: 'var(--theme-primary-dark, #064E3B)' }}>
+                          {item.userName}
+                        </h4>
+                        <span
+                          title="Pendidik Terverifikasi"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '16px',
+                            height: '16px',
+                            borderRadius: '50%',
+                            backgroundColor: '#1D9BF0',
+                            color: '#FFFFFF',
+                            fontSize: '10px',
+                            fontWeight: 900,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Check style={{ width: '10px', height: '10px', strokeWidth: 3 }} />
+                        </span>
+                      </div>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--theme-text-muted, #047857)', fontWeight: 600 }}>
+                        {item.userRole || 'Pendidik'} {item.createdAt ? `• ${formatReviewDate(item.createdAt)}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Star Rating row */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ display: 'flex', gap: '2px' }}>
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star
+                          key={s}
+                          style={{
+                            width: '17px',
+                            height: '17px',
+                            fill: '#FBBC04',
+                            color: '#FBBC04',
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#1E293B', marginLeft: '2px' }}>
+                      5.0
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      color: 'var(--theme-primary, #059669)',
+                      background: 'var(--theme-mint-light, #ECFDF5)',
+                      padding: '0.2rem 0.6rem',
+                      borderRadius: '9999px',
+                      border: '1px solid var(--theme-border, #A7F3D0)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <CheckCircle2 style={{ width: '13px', height: '13px', color: 'var(--theme-primary, #059669)' }} />
+                    Terverifikasi
+                  </span>
+                </div>
+
+                {/* Message quote */}
+                <p
+                  style={{
+                    fontSize: '14.5px',
+                    lineHeight: 1.7,
+                    color: '#334155',
+                    fontWeight: 500,
+                    margin: 0,
+                    whiteSpace: 'pre-wrap',
+                  }}
+                >
+                  "{item.message}"
+                </p>
+
+                {/* Footer note */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderTop: '1px solid #F1F5F9',
+                    paddingTop: '0.75rem',
+                    fontSize: '11px',
+                    color: '#94A3B8',
+                    fontWeight: 600,
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <CheckCheck style={{ width: '14px', height: '14px', color: '#10B981' }} />
+                    Ulasan Asli Guru di Examigo
+                  </span>
+                  <span style={{ color: '#64748B' }}>5/5 Bintang</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 9. Pricing Section */}
+      <section id="harga" className={styles.pricingSection}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Investasi Hemat, Transparan & Fleksibel</h2>
+          <p className={styles.sectionDesc}>Pilih paket yang paling sesuai dengan kebutuhan kelas atau institusi Anda.</p>
+        </div>
+
+        <div className={styles.pricingGrid}>
+          {/* Free */}
+          <div className={styles.pricingCard}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <span style={{ padding: '0.375rem 0.75rem', borderRadius: '9999px', background: 'var(--theme-mint-light, var(--theme-mint-light, #ECFDF5))', color: 'var(--theme-primary, var(--theme-primary-dark, #065F46))', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', alignSelf: 'flex-start' }}>
+                {cmsConfig?.pricing?.free?.badge || 'Paket Dasar'}
+              </span>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--theme-primary-dark, var(--theme-primary-dark, #064E3B))', margin: 0 }}>
+                {cmsConfig?.pricing?.free?.name || 'Free'}
+              </h3>
+              <div className={styles.priceAmount}>
+                Rp {cmsConfig?.pricing?.free?.monthlyPrice !== undefined ? cmsConfig.pricing.free.monthlyPrice.toLocaleString('id-ID') : '0'}{' '}
+                <span style={{ fontSize: '12px', color: 'var(--theme-text-muted, var(--theme-text-muted, #047857))' }}>/bln</span>
+              </div>
+              <hr style={{ border: 'none', borderTop: '1px solid var(--theme-border, var(--theme-border, #A7F3D0))', margin: 0 }} />
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.625rem', fontSize: '13px', color: 'var(--theme-text-body, var(--theme-primary-dark, #065F46))', fontWeight: 600 }}>
+                <li>• Maks. <strong>{cmsConfig?.pricing?.free?.maxParticipants || 5} Peserta Ujian</strong></li>
+                <li>• Maks. <strong>{cmsConfig?.pricing?.free?.maxActiveExams || 1} Ujian Aktif</strong></li>
+                <li>• Maks. <strong>{cmsConfig?.pricing?.free?.maxAiQuestions || 15} Butir</strong> Bank Soal</li>
+                <li>• Input Soal Manual</li>
+                <li>• Auto-Grading PG</li>
+                <li style={{ color: 'var(--theme-border, var(--theme-border, #A7F3D0))', textDecoration: 'line-through' }}>• Tanpa Anti-Cheat & Ekstraksi Dokumen</li>
+              </ul>
+            </div>
+            <Link to="/register" style={{ padding: '0.875rem', borderRadius: '14px', background: 'var(--theme-primary-dark, var(--theme-primary-dark, #064E3B))', color: '#fff', fontSize: '13px', fontWeight: 900, textAlign: 'center', textDecoration: 'none', display: 'block' }}>
+              Mulai Gratis
+            </Link>
+          </div>
+
+          {/* Personal */}
+          <div className={styles.pricingCard}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <span style={{ padding: '0.375rem 0.75rem', borderRadius: '9999px', background: 'var(--theme-mint-light, var(--theme-mint-light, #ECFDF5))', color: 'var(--theme-primary, var(--theme-primary, #059669))', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', alignSelf: 'flex-start' }}>
+                {cmsConfig?.pricing?.personal?.badge || 'Guru Mandiri'}
+              </span>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--theme-primary-dark, var(--theme-primary-dark, #064E3B))', margin: 0 }}>
+                {cmsConfig?.pricing?.personal?.name || 'Personal'}
+              </h3>
+              <div className={styles.priceAmount}>
+                Rp {cmsConfig?.pricing?.personal?.monthlyPrice ? (cmsConfig.pricing.personal.monthlyPrice / 1000) + 'K' : '49K'}{' '}
+                <span style={{ fontSize: '12px', color: 'var(--theme-text-muted, var(--theme-text-muted, #047857))' }}>/bln</span>
+              </div>
+              <hr style={{ border: 'none', borderTop: '1px solid var(--theme-border, var(--theme-border, #A7F3D0))', margin: 0 }} />
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.625rem', fontSize: '13px', color: 'var(--theme-primary-dark, var(--theme-primary-dark, #064E3B))', fontWeight: 700 }}>
+                <li>• <strong>{cmsConfig?.pricing?.personal?.maxAiQuestions || 100} Butir Soal</strong> /bln</li>
+                <li>• Maks. <strong>{cmsConfig?.pricing?.personal?.maxParticipants || 50} Peserta Ujian</strong></li>
+                <li>• Maks. <strong>{cmsConfig?.pricing?.personal?.maxActiveExams || 5} Ujian Aktif</strong></li>
+                <li>• Upload PDF/Word/PPT</li>
+                <li>• Acak Soal & Pilihan</li>
+                <li>• Basic Anti-Cheat Mode</li>
+                <li>• Export Excel & CSV</li>
+              </ul>
+            </div>
+            <Link
+              to={isAuthenticated ? "/checkout?plan=personal&billing=monthly" : "/register?redirect=checkout&plan=personal&billing=monthly"}
+              style={{ padding: '0.875rem', borderRadius: '14px', background: 'var(--theme-primary, var(--theme-primary, #059669))', color: '#fff', fontSize: '13px', fontWeight: 900, textAlign: 'center', textDecoration: 'none', display: 'block' }}
+            >
+              Pilih Personal (Rp {cmsConfig?.pricing?.personal?.monthlyPrice ? (cmsConfig.pricing.personal.monthlyPrice / 1000) + 'K' : '49K'})
+            </Link>
+          </div>
+
+          {/* Pro */}
+          <div className={styles.pricingCardPro}>
+            <div className={styles.popularBadge}>
+              <Sparkles style={{ width: '14px', height: '14px', fill: 'currentColor' }} /> PALING POPULER
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingTop: '0.5rem' }}>
+              <span style={{ padding: '0.375rem 0.75rem', borderRadius: '9999px', background: 'var(--theme-mint-light, var(--theme-mint-light, #ECFDF5))', color: 'var(--theme-primary-dark, var(--theme-primary-dark, #064E3B))', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', border: '1px solid var(--theme-mint, var(--theme-primary, #10B981))', alignSelf: 'flex-start' }}>
+                {cmsConfig?.pricing?.pro_ai?.badge || 'Sekolah & Bimbel'}
+              </span>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--theme-primary-dark, var(--theme-primary-dark, #064E3B))', margin: 0 }}>
+                {cmsConfig?.pricing?.pro_ai?.name || 'Pro'}
+              </h3>
+              <div className={styles.priceAmount}>
+                Rp {cmsConfig?.pricing?.pro_ai?.monthlyPrice ? (cmsConfig.pricing.pro_ai.monthlyPrice / 1000) + 'K' : '149K'}{' '}
+                <span style={{ fontSize: '12px', color: 'var(--theme-text-muted, var(--theme-text-muted, #047857))' }}>/bln</span>
+              </div>
+              <hr style={{ border: 'none', borderTop: '1px solid var(--theme-border, var(--theme-border, #A7F3D0))', margin: 0 }} />
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.625rem', fontSize: '13px', color: 'var(--theme-primary-dark, var(--theme-primary-dark, #064E3B))', fontWeight: 800 }}>
+                <li>• <strong>{cmsConfig?.pricing?.pro_ai?.maxAiQuestions || 300} Butir Soal</strong> /bln</li>
+                <li>• Maks. <strong>{cmsConfig?.pricing?.pro_ai?.maxParticipants || 200} Peserta Ujian</strong></li>
+                <li>• Maks. <strong>{cmsConfig?.pricing?.pro_ai?.maxActiveExams || 15} Ujian Aktif</strong></li>
+                <li>• Koreksi Esai & Scan Foto Soal</li>
+                <li>• Fullscreen Lock Anti-Cheat</li>
+                <li>• Ekspor PDF & 3 Akses Guru</li>
+              </ul>
+            </div>
+            <Link
+              to={isAuthenticated ? "/checkout?plan=pro_ai&billing=monthly" : "/register?redirect=checkout&plan=pro_ai&billing=monthly"}
+              style={{ padding: '0.875rem', borderRadius: '14px', background: 'var(--theme-mint, var(--theme-primary, #10B981))', color: '#FFFFFF', fontSize: '13px', fontWeight: 900, textAlign: 'center', textDecoration: 'none', display: 'block', boxShadow: '0 4px 14px rgba(0,0,0,0.2)' }}
+            >
+              Pilih Paket Pro (Rp {cmsConfig?.pricing?.pro_ai?.monthlyPrice ? (cmsConfig.pricing.pro_ai.monthlyPrice / 1000) + 'K' : '149K'})
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* 10. FAQ Accordion */}
+      <section id="faq" className={styles.faqSection}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Tanya Jawab Seputar Examigo</h2>
+          <p className={styles.sectionDesc}>Semua hal yang perlu Anda ketahui tentang kemudahan penggunaan platform Examigo.</p>
+        </div>
+
+        <div className={styles.faqContainer}>
+          {(cmsConfig?.faqs && cmsConfig.faqs.length > 0 ? cmsConfig.faqs : faqs).map((faq: any, idx: number) => {
+            const isOpen = openFaqIndex === idx;
+            return (
+              <div
+                key={idx}
+                onClick={() => toggleFaq(idx)}
+                className={`${styles.faqItem} ${isOpen ? styles.faqItemOpen : ''}`}
+              >
+                <div className={styles.faqQuestionRow}>
+                  <span>{faq.q}</span>
+                  <ChevronDown style={{ width: '20px', height: '20px', color: 'var(--theme-primary, #059669)', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+                </div>
+                {isOpen && (
+                  <p className={styles.faqAnswer}>
+                    {faq.a}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 11. Operational Action Terminal (Anti-Mainstream Command Strip) */}
+      <section className={styles.ctaTerminalSection}>
+        <div className={styles.ctaTerminalContainer}>
+          <div className={styles.terminalLeftCol}>
+            <div className={styles.terminalStatusRow}>
+              <span className={styles.terminalLiveDot} />
+              <span>SISTEM SIAP DIGUNAKAN • SERVER NORMAL</span>
+              {terminalTime && <span className={styles.terminalClockBadge}>• {terminalTime}</span>}
+            </div>
+            <h2 className={styles.terminalTitle}>
+              Mulai Evaluasi Digital Tanpa Kertas Hari Ini.
+            </h2>
+            <p className={styles.terminalDesc}>
+              Unggah materi ajar, amankan ruang ujian dari kecurangan, dan unduh nilai format rapor resmi dalam satu alur kerja terpadu.
             </p>
 
-            {/* Action Buttons */}
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link
-                to={isAuthenticated ? '/ai-generator' : '/register'}
-                className="w-full sm:w-auto px-7 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-2 transition-all"
-              >
-                <Sparkles className="w-4 h-4 text-amber-300 fill-current" />
-                <span>Coba AI Generator</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+            {/* Dynamic Real-time Telemetry Feed */}
+            <div className={styles.terminalTelemetryFeed}>
+              <div className={styles.terminalTelemetryBar}>
+                <div className={styles.terminalTelemetryLeft}>
+                  <span className={styles.terminalFeedDot} />
+                  <span className={styles.terminalFeedLabel}>AKTIVITAS REAL-TIME:</span>
+                  <span className={styles.terminalFeedTag}>[{TERMINAL_TELEMETRY_LOGS[terminalLogIndex].tag}]</span>
+                  <span className={styles.terminalFeedText}>{TERMINAL_TELEMETRY_LOGS[terminalLogIndex].text}</span>
+                </div>
+                <span className={styles.terminalFeedMetric}>{TERMINAL_TELEMETRY_LOGS[terminalLogIndex].metric}</span>
+              </div>
+            </div>
 
-              {/* Form Ikut Ujian */}
-              <form onSubmit={handleJoinExam} className="w-full sm:w-auto flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-300 shadow-xs">
-                <input
-                  type="text"
-                  value={examCodeInput}
-                  onChange={(e) => setExamCodeInput(e.target.value)}
-                  placeholder="Kode Ujian..."
-                  className="px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none uppercase w-32 tracking-wider"
-                />
+            <div className={styles.terminalSpecsRow}>
+              <div className={styles.terminalSpecItem}>
+                <span className={styles.terminalSpecNumber}>01</span>
+                <span>Tanpa Instalasi Aplikasi</span>
+              </div>
+              <div className={styles.terminalSpecItem}>
+                <span className={styles.terminalSpecNumber}>02</span>
+                <span>Proteksi Layar Penuh</span>
+              </div>
+              <div className={styles.terminalSpecItem}>
+                <span className={styles.terminalSpecNumber}>03</span>
+                <span>Rekap Excel Seketika</span>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.terminalRightCol}>
+            <div className={styles.terminalActionBox}>
+              <div className={styles.terminalActionHeader}>
+                <span>Gerbang Akses Cepat</span>
+                <span style={{ color: '#10B981', fontFamily: 'monospace' }}>● AKTIF</span>
+              </div>
+
+              {/* Interactive Role Switcher */}
+              <div className={styles.terminalRoleTabs}>
                 <button
-                  type="submit"
-                  className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shrink-0 flex items-center gap-1"
+                  type="button"
+                  onClick={() => setTerminalRoleTab('guru')}
+                  className={terminalRoleTab === 'guru' ? styles.terminalRoleTabActive : styles.terminalRoleTab}
                 >
-                  <span>Ikut Ujian</span>
-                  <Play className="w-3 h-3 fill-current" />
+                  Untuk Guru
                 </button>
-              </form>
-            </div>
-
-            {/* Concise Trust Badges */}
-            <div className="pt-4 flex flex-wrap items-center justify-center gap-4 text-xs font-bold text-slate-500">
-              <div className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-2xs">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Tanpa Instalasi
-              </div>
-              <div className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-2xs">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Tanpa Kartu Kredit
-              </div>
-              <div className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-2xs">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Support HP & Laptop
-              </div>
-            </div>
-          </div>
-
-          {/* 3. Interactive Demo Preview Card with Auto-Play & Live Click Events */}
-          <div id="demo" className="mt-10 lg:mt-12 max-w-4xl mx-auto">
-            <div className="p-3 sm:p-4 rounded-2xl bg-white border border-slate-200 shadow-xl space-y-3 relative group">
-              
-              {/* Tab Selector Header */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                  </div>
-                  <span className="text-[11px] font-mono text-slate-400 ml-1 hidden sm:inline">examigo.app/demo</span>
-                  
-                  {/* Auto-Play Toggle Indicator */}
-                  <button
-                    onClick={() => setIsAutoPlaying(!isAutoPlaying)}
-                    className="ml-2 px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[10px] flex items-center gap-1 transition-all"
-                  >
-                    {isAutoPlaying ? (
-                      <>
-                        <Pause className="w-3 h-3 text-indigo-600" />
-                        <span className="text-indigo-700">Auto-Slide ON</span>
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-3 h-3 text-slate-500" />
-                        <span>Manual</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg w-full sm:w-auto overflow-x-auto">
-                  <button
-                    onClick={() => handleManualTabClick('generator')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                      activeDemoTab === 'generator' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>1. AI Generator</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleManualTabClick('builder')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                      activeDemoTab === 'builder' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <Layers className="w-3.5 h-3.5 text-blue-600" />
-                    <span>2. Exam Builder</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleManualTabClick('exam')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                      activeDemoTab === 'exam' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>3. Ruang Ujian</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleManualTabClick('analytics')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                      activeDemoTab === 'analytics' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <BarChart2 className="w-3.5 h-3.5 text-purple-600" />
-                    <span>4. Analitik</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Tab Display Screen */}
-              <div className="p-4 sm:p-6 rounded-xl bg-slate-50 border border-slate-200 min-h-[310px] text-xs font-sans">
-                
-                {/* TAB 1: AI GENERATOR */}
-                {activeDemoTab === 'generator' && (
-                  <div className="space-y-4 animate-fade-in-fast">
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
-                          <FileText className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="font-extrabold text-slate-900 block text-xs sm:text-sm">Modul_Fisika_SMA_Bab3.pdf</span>
-                          <span className="text-[11px] text-slate-500 font-medium">Ukuran: 2.4 MB • 15 Halaman • 10 Soal Ter-generate</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-[11px] flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> AI Vision Active
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-3">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-extrabold text-slate-700 flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Soal #1 (Pilihan Ganda)
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold">Tingkat SEDANG</span>
-                          <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-bold">5 Poin</span>
-                        </div>
-                      </div>
-
-                      <p className="font-bold text-slate-900 text-xs sm:text-sm leading-relaxed">
-                        Berdasarkan Hukum II Newton (F = m × a), jika gaya net total F yang bekerja pada benda bermassa m dilipatgandakan menjadi 2F, maka percepatan a benda akan menjadi...
-                      </p>
-
-                      {/* Interactive Clickable Options */}
-                      <div className="space-y-1.5">
-                        <span className="text-[10px] text-slate-400 font-semibold block">Klik opsi di bawah untuk mencoba simulasi jawaban:</span>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                          {[
-                            { code: 'A', text: '2 kali percepatan semula (Jawaban Kunci AI)', isCorrect: true },
-                            { code: 'B', text: '1/2 kali percepatan semula', isCorrect: false },
-                            { code: 'C', text: 'Tetap tidak berubah', isCorrect: false },
-                            { code: 'D', text: '4 kali percepatan semula', isCorrect: false },
-                          ].map((opt, idx) => {
-                            const isSelected = selectedDemoOption === idx;
-                            return (
-                              <button
-                                key={opt.code}
-                                onClick={() => setSelectedDemoOption(idx)}
-                                className={`p-2.5 rounded-lg border text-left font-bold transition-all flex items-center justify-between cursor-pointer ${
-                                  isSelected
-                                    ? opt.isCorrect
-                                      ? 'bg-emerald-50 border-emerald-400 text-emerald-900 shadow-2xs'
-                                      : 'bg-indigo-50 border-indigo-400 text-indigo-900 shadow-2xs'
-                                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                                }`}
-                              >
-                                <span>{opt.code}. {opt.text}</span>
-                                {opt.isCorrect && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 ml-2" />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="p-2.5 rounded-lg bg-indigo-50/70 border border-indigo-100 text-[11px] text-indigo-900 font-medium flex items-start gap-2">
-                        <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-                        <div>
-                          <strong className="font-bold">Penjelasan Kunci Jawaban AI:</strong> Menurut persamaan a = F / m, percepatan a berbanding lurus secara linier dengan gaya total F. Sehingga jika F menjadi 2F, percepatan a ikut naik 2x lipat.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* TAB 2: EXAM BUILDER */}
-                {activeDemoTab === 'builder' && (
-                  <div className="space-y-4 animate-fade-in-fast">
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
-                      <div>
-                        <span className="font-extrabold text-slate-900 block text-xs sm:text-sm">Ujian Akhir Semester Fisika X</span>
-                        <span className="text-[11px] text-slate-500 font-medium">Kode Akses Ujian: <code className="bg-slate-200 px-1.5 py-0.5 rounded font-mono font-bold text-slate-900">EXAM-FIS2026</code></span>
-                      </div>
-                      <span className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-800 font-extrabold text-xs">
-                        30 Soal Terpilih (Total 100 Poin)
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                      <div className="p-2.5 bg-white rounded-lg border border-slate-200 text-center">
-                        <span className="text-slate-400 font-medium block text-[10px]">Durasi Ujian</span>
-                        <span className="font-bold text-slate-900">60 Menit</span>
-                      </div>
-                      <div className="p-2.5 bg-white rounded-lg border border-slate-200 text-center">
-                        <span className="text-slate-400 font-medium block text-[10px]">Batas Nilai KKM</span>
-                        <span className="font-bold text-slate-900">75 / 100</span>
-                      </div>
-                      <div className="p-2.5 bg-white rounded-lg border border-slate-200 text-center">
-                        <span className="text-slate-400 font-medium block text-[10px]">Acak Urutan Soal</span>
-                        <span className="font-extrabold text-emerald-600">✓ AKTIF</span>
-                      </div>
-                      <div className="p-2.5 bg-white rounded-lg border border-slate-200 text-center">
-                        <span className="text-slate-400 font-medium block text-[10px]">Acak Opsi A,B,C,D</span>
-                        <span className="font-extrabold text-emerald-600">✓ AKTIF</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Daftar Soal Dalam Ujian Ini:</span>
-                      <div className="p-2.5 bg-white rounded-lg border border-slate-200 flex items-center justify-between text-xs font-bold text-slate-800">
-                        <span>1. Hukum II Newton (Pilihan Ganda - 5 Poin)</span>
-                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px]">Pilihan Ganda</span>
-                      </div>
-                      <div className="p-2.5 bg-white rounded-lg border border-slate-200 flex items-center justify-between text-xs font-bold text-slate-800">
-                        <span>2. Analisis Grafik Usaha dan Energi (Essay - 15 Poin)</span>
-                        <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-700 text-[10px]">AI Essay</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* TAB 3: RUANG UJIAN */}
-                {activeDemoTab === 'exam' && (
-                  <div className="space-y-4 animate-fade-in-fast">
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
-                      <div className="flex items-center gap-2">
-                        <ShieldCheck className="w-5 h-5 text-emerald-600" />
-                        <div>
-                          <span className="font-extrabold text-slate-900 block text-xs sm:text-sm">Ruang Ujian Online (Student Mode)</span>
-                          <span className="text-[11px] text-slate-500 font-medium">Status: Fullscreen Lock Active • Auto Save On</span>
-                        </div>
-                      </div>
-                      <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 font-extrabold text-xs flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" /> 45:12 Sisa Waktu
-                      </span>
-                    </div>
-
-                    <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-3">
-                      <div className="flex items-center justify-between text-xs border-b border-slate-100 pb-2">
-                        <span className="font-bold text-slate-700">Soal {activeNavQuestionDemo} dari 30</span>
-                        <span className="text-emerald-700 font-bold text-[11px] flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Jawaban Tersimpan Otomatis
-                        </span>
-                      </div>
-
-                      <p className="font-bold text-slate-900 text-xs sm:text-sm">
-                        {activeNavQuestionDemo === 12 
-                          ? 'Berapakah usaha total yang dilakukan pada benda bermassa 2 kg yang berpindah sejauh 5 meter dengan percepatan 3 m/s²?'
-                          : `Pertanyaan simulasi nomor ${activeNavQuestionDemo}: Manakah berikut yang merupakan besaran turunan dalam Satuan Internasional (SI)?`}
-                      </p>
-
-                      <div className="flex flex-wrap items-center gap-1.5 pt-2">
-                        <span className="text-[11px] font-bold text-slate-500 mr-2">Klik Navigasi Soal:</span>
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
-                          <button
-                            key={num}
-                            onClick={() => setActiveNavQuestionDemo(num)}
-                            className={`w-6 h-6 rounded flex items-center justify-center font-bold text-[10px] transition-all cursor-pointer ${
-                              activeNavQuestionDemo === num
-                                ? 'bg-indigo-600 text-white ring-2 ring-indigo-300 scale-110'
-                                : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                            }`}
-                          >
-                            {num}
-                          </button>
-                        ))}
-                        <span className="text-slate-400 text-[10px] ml-1">... 30</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* TAB 4: ANALITIK */}
-                {activeDemoTab === 'analytics' && (
-                  <div className="space-y-4 animate-fade-in-fast">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                      <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                        <span className="text-slate-400 font-bold block text-[10px]">Total Peserta</span>
-                        <span className="text-xl font-black text-slate-900">142</span>
-                      </div>
-                      <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                        <span className="text-slate-400 font-bold block text-[10px]">Rata-Rata Nilai</span>
-                        <span className="text-xl font-black text-indigo-600">86.4</span>
-                      </div>
-                      <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                        <span className="text-slate-400 font-bold block text-[10px]">Tingkat Kelulusan</span>
-                        <span className="text-xl font-black text-emerald-600">94.2%</span>
-                      </div>
-                      <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                        <span className="text-slate-400 font-bold block text-[10px]">Kecepatan Grading</span>
-                        <span className="text-xl font-black text-purple-600">Instan</span>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-2">
-                      <div className="flex items-center justify-between text-xs font-bold text-slate-800">
-                        <span>Distribusi Skor Nilai Peserta</span>
-                        <span className="text-indigo-600">Laporan Rekap XLS / CSV Ready</span>
-                      </div>
-
-                      <div className="space-y-2 pt-1">
-                        <div>
-                          <div className="flex justify-between text-[11px] font-bold text-slate-600 mb-1">
-                            <span>Sangat Baik (Nilai 85 - 100)</span>
-                            <span>65% Peserta (92 Siswa)</span>
-                          </div>
-                          <div className="w-full bg-slate-100 rounded-full h-2">
-                            <div className="bg-emerald-500 h-2 rounded-full w-[65%]" />
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between text-[11px] font-bold text-slate-600 mb-1">
-                            <span>Baik / Lulus KKM (Nilai 75 - 84)</span>
-                            <span>29% Peserta (41 Siswa)</span>
-                          </div>
-                          <div className="w-full bg-slate-100 rounded-full h-2">
-                            <div className="bg-blue-500 h-2 rounded-full w-[29%]" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      {/* 4. Stat Ringkas */}
-      <section className="py-8 bg-white border-y border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 text-center grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-bold text-slate-600">
-          <div><span className="text-2xl font-black text-slate-900 block">10,000+</span> Soal AI Di-generate</div>
-          <div><span className="text-2xl font-black text-indigo-600 block">99.8%</span> Akurasi Auto-Grading</div>
-          <div><span className="text-2xl font-black text-slate-900 block">&lt; 2 Menit</span> Bikin Ujian</div>
-          <div><span className="text-2xl font-black text-emerald-600 block">100%</span> Sesuai Kurikulum</div>
-        </div>
-      </section>
-
-      {/* 5. Poin Perbandingan Ringkas Vector Icons */}
-      <section className="py-16 bg-slate-50">
-        <div className="max-w-6xl mx-auto px-4 space-y-10">
-          <div className="text-center space-y-1">
-            <span className="text-xs font-bold text-indigo-600 uppercase">Mengapa Examigo?</span>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Perbandingan Cara Kerja</h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs font-semibold">
-            {/* Cara Manual */}
-            <div className="p-6 rounded-2xl bg-white border border-red-200 space-y-3 shadow-2xs">
-              <h3 className="font-extrabold text-red-600 text-sm border-b pb-2 flex items-center gap-2">
-                <X className="w-4 h-4 text-red-600" /> Cara Manual Tradisional
-              </h3>
-              <ul className="space-y-2 text-slate-700">
-                <li className="flex items-center gap-2"><X className="w-3.5 h-3.5 text-red-500 shrink-0" /> Ketik soal satu per satu (butuh berjam-jam)</li>
-                <li className="flex items-center gap-2"><X className="w-3.5 h-3.5 text-red-500 shrink-0" /> Sulit bikin variasi (rawan menyontek)</li>
-                <li className="flex items-center gap-2"><X className="w-3.5 h-3.5 text-red-500 shrink-0" /> Koreksi lembar jawaban manual per siswa</li>
-                <li className="flex items-center gap-2"><X className="w-3.5 h-3.5 text-red-500 shrink-0" /> File bank soal tercecer & berantakan</li>
-              </ul>
-            </div>
-
-            {/* Solusi Examigo */}
-            <div className="p-6 rounded-2xl bg-white border border-indigo-200 space-y-3 shadow-2xs">
-              <h3 className="font-extrabold text-emerald-600 text-sm border-b pb-2 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Solusi Cerdas Examigo (AI)
-              </h3>
-              <ul className="space-y-2 text-slate-700">
-                <li className="flex items-center gap-2 text-indigo-900 font-bold"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> AI buat soal dari PDF/Word/Foto dalam 10 detik</li>
-                <li className="flex items-center gap-2 text-indigo-900 font-bold"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Acak Otomatis urutan soal & pilihan A,B,C,D</li>
-                <li className="flex items-center gap-2 text-indigo-900 font-bold"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Auto-Grading instan untuk PG & Essay</li>
-                <li className="flex items-center gap-2 text-indigo-900 font-bold"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Bank Soal terpusat rapi & mudah dicari</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 6. Fitur Poin Vector Icons */}
-      <section id="fitur" className="py-16 bg-white border-t border-slate-200">
-        <div className="max-w-6xl mx-auto px-4 space-y-10">
-          <div className="text-center space-y-1">
-            <span className="text-xs font-bold text-indigo-600 uppercase">Fitur Ringkas</span>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Segala Fitur Ujian Dalam 1 Tempat</h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 text-xs">
-            <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold">
-                <Bot className="w-4 h-4" />
-              </div>
-              <h4 className="font-extrabold text-slate-900 text-sm">AI Question Generator</h4>
-              <ul className="space-y-1 text-slate-600 font-medium">
-                <li>• Generasi PG, Essay, & Isian</li>
-                <li>• Ekstraksi Teks PDF, Word, PPT</li>
-                <li>• AI Vision (Baca foto/diagram)</li>
-              </ul>
-            </div>
-
-            <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
-                <BookOpen className="w-4 h-4" />
-              </div>
-              <h4 className="font-extrabold text-slate-900 text-sm">Bank Soal Terorganisir</h4>
-              <ul className="space-y-1 text-slate-600 font-medium">
-                <li>• Filter Mapel, Kelas, & Kesulitan</li>
-                <li>• Simbol Matematika & Sains</li>
-                <li>• Pratinjau Detail Soal (Eye Icon)</li>
-              </ul>
-            </div>
-
-            <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center font-bold">
-                <Layers className="w-4 h-4" />
-              </div>
-              <h4 className="font-extrabold text-slate-900 text-sm">Exam Builder</h4>
-              <ul className="space-y-1 text-slate-600 font-medium">
-                <li>• Acak Otomatis Soal & Jawaban</li>
-                <li>• Buat Kode Akses Ujian Unik</li>
-                <li>• Atur Durasi & Nilai KKM</li>
-              </ul>
-            </div>
-
-            <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-              <h4 className="font-extrabold text-slate-900 text-sm">Anti-Kecurangan (Anti-Cheat)</h4>
-              <ul className="space-y-1 text-slate-600 font-medium">
-                <li>• Mode Layar Penuh (Fullscreen)</li>
-                <li>• Deteksi Pindah Tab / Aplikasi</li>
-                <li>• Auto Save Jawaban Peserta</li>
-              </ul>
-            </div>
-
-            <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center font-bold">
-                <BarChart2 className="w-4 h-4" />
-              </div>
-              <h4 className="font-extrabold text-slate-900 text-sm">Auto-Grading & Analitik</h4>
-              <ul className="space-y-1 text-slate-600 font-medium">
-                <li>• Penilaian PG & Essay Otomatis</li>
-                <li>• Grafik Distribusi Skor & Rata-rata</li>
-                <li>• Reviewer Jawaban Siswa</li>
-              </ul>
-            </div>
-
-            <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-rose-600 text-white flex items-center justify-center font-bold">
-                <Download className="w-4 h-4" />
-              </div>
-              <h4 className="font-extrabold text-slate-900 text-sm">Export Data Rekap</h4>
-              <ul className="space-y-1 text-slate-600 font-medium">
-                <li>• Unduh Nilai ke Format Excel</li>
-                <li>• Ekspor CSV murni tanpa %</li>
-                <li>• Cetak Laporan PDF</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 7. Alur 4 Langkah Ringkas */}
-      <section id="cara-kerja" className="py-16 bg-slate-50 border-t border-slate-200">
-        <div className="max-w-6xl mx-auto px-4 space-y-10">
-          <div className="text-center space-y-1">
-            <span className="text-xs font-bold text-indigo-600 uppercase">Alur Kerja</span>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900">4 Langkah Mudah</h2>
-          </div>
-
-          <div className="relative mt-8">
-            {/* Background connecting line for desktop */}
-            <div className="hidden lg:block absolute top-24 left-16 right-16 h-0.5 bg-gradient-to-r from-blue-100 via-indigo-200 to-emerald-100 z-0"></div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6 relative z-10">
-              {/* Step 1 */}
-              <div className="group relative p-8 bg-white/80 backdrop-blur-sm rounded-3xl border border-slate-200 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
-                <div className="absolute -top-5 -right-5 w-14 h-14 bg-white text-indigo-600 font-black text-2xl rounded-2xl flex items-center justify-center shadow-lg border border-slate-100 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all z-20">
-                  1
-                </div>
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-inner group-hover:from-blue-600 group-hover:to-blue-700 group-hover:text-white transition-colors duration-300">
-                  <Upload className="w-8 h-8" />
-                </div>
-                <h3 className="text-xl font-black text-slate-900 mb-3">Upload Materi</h3>
-                <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                  Unggah file PDF, PPT, Word, atau ketik langsung materi pengajaran Anda.
-                </p>
-              </div>
-
-              {/* Step 2 */}
-              <div className="group relative p-8 bg-white/80 backdrop-blur-sm rounded-3xl border border-slate-200 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
-                <div className="absolute -top-5 -right-5 w-14 h-14 bg-white text-indigo-600 font-black text-2xl rounded-2xl flex items-center justify-center shadow-lg border border-slate-100 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all z-20">
-                  2
-                </div>
-                <div className="w-16 h-16 bg-gradient-to-br from-fuchsia-50 to-fuchsia-100 text-fuchsia-600 rounded-2xl flex items-center justify-center mb-6 shadow-inner group-hover:from-fuchsia-600 group-hover:to-fuchsia-700 group-hover:text-white transition-colors duration-300">
-                  <Bot className="w-8 h-8" />
-                </div>
-                <h3 className="text-xl font-black text-slate-900 mb-3">AI Generate Soal</h3>
-                <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                  Sistem AI kami membaca konteks materi dan otomatis membuat soal berkualitas dalam hitungan detik.
-                </p>
-              </div>
-
-              {/* Step 3 */}
-              <div className="group relative p-8 bg-white/80 backdrop-blur-sm rounded-3xl border border-slate-200 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
-                <div className="absolute -top-5 -right-5 w-14 h-14 bg-white text-indigo-600 font-black text-2xl rounded-2xl flex items-center justify-center shadow-lg border border-slate-100 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all z-20">
-                  3
-                </div>
-                <div className="w-16 h-16 bg-gradient-to-br from-amber-50 to-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6 shadow-inner group-hover:from-amber-600 group-hover:to-amber-700 group-hover:text-white transition-colors duration-300">
-                  <Share2 className="w-8 h-8" />
-                </div>
-                <h3 className="text-xl font-black text-slate-900 mb-3">Publikasi Ujian</h3>
-                <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                  Dapatkan <strong className="text-slate-700">Kode Akses Ujian</strong> dan bagikan langsung ke kelas atau murid Anda secara instan.
-                </p>
-              </div>
-
-              {/* Step 4 */}
-              <div className="group relative p-8 bg-white/80 backdrop-blur-sm rounded-3xl border border-slate-200 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
-                <div className="absolute -top-5 -right-5 w-14 h-14 bg-white text-indigo-600 font-black text-2xl rounded-2xl flex items-center justify-center shadow-lg border border-slate-100 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all z-20">
-                  4
-                </div>
-                <div className="w-16 h-16 bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 shadow-inner group-hover:from-emerald-600 group-hover:to-emerald-700 group-hover:text-white transition-colors duration-300">
-                  <BarChart2 className="w-8 h-8" />
-                </div>
-                <h3 className="text-xl font-black text-slate-900 mb-3">Auto-Grading</h3>
-                <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                  Skor akhir dan laporan analisis tingkat kesulitan soal keluar secara *real-time*.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 8. Target Pengguna Vector Icons */}
-      <section id="target" className="py-16 bg-white border-t border-slate-200">
-        <div className="max-w-6xl mx-auto px-4 space-y-8">
-          <div className="text-center space-y-1">
-            <span className="text-xs font-bold text-indigo-600 uppercase">Pengguna</span>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Cocok Untuk Siapa Saja?</h2>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-bold text-slate-800 text-center">
-            <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 flex flex-col items-center justify-center">
-              <GraduationCap className="w-6 h-6 text-indigo-600" />
-              <p>Guru & Dosen</p>
-            </div>
-            <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 flex flex-col items-center justify-center">
-              <BookOpen className="w-6 h-6 text-blue-600" />
-              <p>Sekolah & Kampus</p>
-            </div>
-            <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 flex flex-col items-center justify-center">
-              <Users className="w-6 h-6 text-purple-600" />
-              <p>Bimbel & Kursus</p>
-            </div>
-            <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 flex flex-col items-center justify-center">
-              <Building2 className="w-6 h-6 text-emerald-600" />
-              <p>HRD & Perusahaan</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 9. Pricing Section Vector Icons */}
-      <section id="harga" className="py-16 bg-slate-50 border-t border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 space-y-10">
-          <div className="text-center space-y-1">
-            <span className="text-xs font-bold text-indigo-600 uppercase">Paket Harga</span>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Pilihan Paket Transparan</h2>
-          </div>
-
-          {/* 4 Cards Vector Icons */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
-            
-            {/* Free */}
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 space-y-4 flex flex-col justify-between shadow-2xs">
-              <div className="space-y-2.5">
-                <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold uppercase inline-flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-slate-500" /> Paket Dasar
-                </span>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 text-slate-600" /> Free
-                </h3>
-                <div className="text-2xl font-black text-slate-900">Rp 0 <span className="text-xs font-normal text-slate-400">/bln</span></div>
-                <hr className="border-slate-100" />
-                <ul className="space-y-1.5 text-xs text-slate-700 font-medium">
-                  <li>• Maks. <strong>5 Peserta</strong></li>
-                  <li>• Maks. <strong>1 Ujian</strong></li>
-                  <li>• Maks. <strong>15 Soal</strong> Bank Soal</li>
-                  <li>• Buat Soal Manual</li>
-                  <li>• Auto-Grading PG</li>
-                  <li className="text-slate-400 line-through">• Tanpa Anti-Cheat & AI</li>
-                </ul>
-              </div>
-              <Link to="/register" className="w-full py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold text-center block">Mulai Gratis</Link>
-            </div>
-
-            {/* Personal */}
-            <div className="p-5 rounded-2xl bg-white border border-indigo-200 space-y-4 flex flex-col justify-between shadow-2xs">
-              <div className="space-y-2.5">
-                <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold uppercase inline-flex items-center gap-1">
-                  <User className="w-3 h-3 text-blue-600" /> Pengajar Mandiri
-                </span>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-1.5">
-                  <User className="w-4 h-4 text-blue-600" /> Personal
-                </h3>
-                <div className="text-2xl font-black text-slate-900">Rp 49K <span className="text-xs font-normal text-slate-400">/bln</span></div>
-                <hr className="border-slate-100" />
-                <ul className="space-y-1.5 text-xs text-slate-700 font-medium">
-                  <li>• <strong>100 AI Questions</strong> /bln</li>
-                  <li>• Maks. <strong>50 Peserta</strong></li>
-                  <li>• Maks. <strong>5 Ujian</strong></li>
-                  <li>• Upload PDF/Word/PPT</li>
-                  <li>• Random Soal & Jawaban</li>
-                  <li className="text-indigo-700 font-bold">• Basic Anti-Cheat</li>
-                  <li>• Export Excel & CSV</li>
-                </ul>
-              </div>
-              <Link
-                to={isAuthenticated ? "/checkout?plan=personal&billing=monthly" : "/register?redirect=checkout&plan=personal&billing=monthly"}
-                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold text-center block transition-all shadow-xs"
-              >
-                Mulai Personal (Rp 49K)
-              </Link>
-            </div>
-
-            {/* Pro AI */}
-            <div className="p-5 rounded-2xl bg-white border-2 border-indigo-600 space-y-4 flex flex-col justify-between shadow-md relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[9px] font-black px-3 py-0.5 rounded-full flex items-center gap-1">
-                <Sparkles className="w-2.5 h-2.5 text-amber-300 fill-current" /> POPULER
-              </div>
-              <div className="space-y-2.5 pt-1">
-                <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-bold uppercase inline-flex items-center gap-1">
-                  <Star className="w-3 h-3 text-indigo-600" /> Sekolah & Bimbel
-                </span>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-1.5">
-                  <Star className="w-4 h-4 text-indigo-600 fill-current" /> Pro AI
-                </h3>
-                <div className="text-2xl font-black text-indigo-600">Rp 149K <span className="text-xs font-normal text-slate-400">/bln</span></div>
-                <hr className="border-slate-100" />
-                <ul className="space-y-1.5 text-xs text-slate-700 font-medium">
-                  <li>• <strong>300 AI Questions</strong> /bln</li>
-                  <li>• Maks. <strong>200 Peserta</strong></li>
-                  <li>• Maks. <strong>15 Ujian</strong></li>
-                  <li className="text-purple-700 font-bold">• AI Essay & AI Vision</li>
-                  <li className="text-indigo-700 font-bold">• Advanced Anti-Cheat</li>
-                  <li>• Export PDF & 3 Teacher</li>
-                </ul>
-              </div>
-              <Link
-                to={isAuthenticated ? "/checkout?plan=pro_ai&billing=monthly" : "/register?redirect=checkout&plan=pro_ai&billing=monthly"}
-                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold text-center block transition-all shadow-md"
-              >
-                Pilih Paket Pro AI (Rp 149K)
-              </Link>
-            </div>
-
-            {/* Enterprise */}
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 space-y-4 flex flex-col justify-between shadow-2xs">
-              <div className="space-y-2.5">
-                <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold uppercase inline-flex items-center gap-1">
-                  <Building2 className="w-3 h-3 text-emerald-600" /> Kampus & Institusi
-                </span>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4 text-emerald-600" /> Enterprise
-                </h3>
-                <div className="text-xl font-black text-slate-900">Custom <span className="text-xs font-normal text-slate-400">Plan</span></div>
-                <hr className="border-slate-100" />
-                <ul className="space-y-1.5 text-xs text-slate-700 font-medium">
-                  <li>• Semua Fitur Pro AI</li>
-                  <li>• Custom AI & Unlimited Bank</li>
-                  <li>• Custom Domain & SSO</li>
-                  <li>• Dedicated Server & SLA</li>
-                </ul>
-              </div>
-              <a href="https://wa.me/6281234567890?text=Halo%20Tim%20Examigo,%20saya%20tertarik%20dengan%20Paket%20Enterprise" target="_blank" rel="noreferrer" className="w-full py-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-slate-900 text-xs font-bold text-center block">Konsultasi Enterprise</a>
-            </div>
-
-          </div>
-
-          {/* Matriks Ringkas Vector Icons */}
-          <div className="pt-4 space-y-4">
-            <h3 className="text-lg font-bold text-slate-900 text-center">Matriks Perbandingan Fitur</h3>
-            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-900">
-                    <th className="p-3 font-bold">Fitur Platform</th>
-                    <th className="p-3 font-bold text-center">Free</th>
-                    <th className="p-3 font-bold text-center">Personal</th>
-                    <th className="p-3 font-bold text-center text-indigo-700 bg-indigo-50/50">Pro AI</th>
-                    <th className="p-3 font-bold text-center">Enterprise</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                  <tr>
-                    <td className="p-3 font-bold text-slate-900">Harga / Bulan</td>
-                    <td className="p-3 text-center font-bold">Rp 0</td>
-                    <td className="p-3 text-center font-bold">Rp 49K</td>
-                    <td className="p-3 text-center font-bold text-indigo-600 bg-indigo-50/30">Rp 149K</td>
-                    <td className="p-3 text-center font-bold">Custom</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3">AI Question Generator</td>
-                    <td className="p-3 text-center"><X className="w-3.5 h-3.5 text-red-500 mx-auto" /></td>
-                    <td className="p-3 text-center text-emerald-600 font-bold">100 / bln</td>
-                    <td className="p-3 text-center text-emerald-600 font-bold bg-indigo-50/30">300 / bln</td>
-                    <td className="p-3 text-center text-emerald-600 font-bold">Custom</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3">Kapasitas Peserta Ujian</td>
-                    <td className="p-3 text-center">5</td>
-                    <td className="p-3 text-center font-bold">50</td>
-                    <td className="p-3 text-center font-bold text-indigo-700 bg-indigo-50/30">200</td>
-                    <td className="p-3 text-center font-bold">Custom</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3">Sistem Anti-Cheat</td>
-                    <td className="p-3 text-center"><X className="w-3.5 h-3.5 text-red-500 mx-auto" /></td>
-                    <td className="p-3 text-center text-indigo-600 font-bold">Basic</td>
-                    <td className="p-3 text-center text-indigo-600 font-bold bg-indigo-50/30">Advanced</td>
-                    <td className="p-3 text-center text-indigo-600 font-bold">Full</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3">Acak Soal & Pilihan A,B,C,D</td>
-                    <td className="p-3 text-center"><X className="w-3.5 h-3.5 text-red-500 mx-auto" /></td>
-                    <td className="p-3 text-center text-emerald-600 font-bold"><Check className="w-3.5 h-3.5 text-emerald-600 mx-auto" /></td>
-                    <td className="p-3 text-center text-emerald-600 font-bold bg-indigo-50/30"><Check className="w-3.5 h-3.5 text-emerald-600 mx-auto" /></td>
-                    <td className="p-3 text-center text-emerald-600 font-bold"><Check className="w-3.5 h-3.5 text-emerald-600 mx-auto" /></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      {/* 10. FAQ Accordion Vector Icons */}
-      <section id="faq" className="py-16 bg-white border-t border-slate-200">
-        <div className="max-w-3xl mx-auto px-4 space-y-8">
-          <div className="text-center space-y-1">
-            <span className="text-xs font-bold text-indigo-600 uppercase">FAQ</span>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Tanya Jawab Ringkas</h2>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            {faqs.map((faq, idx) => {
-              const isOpen = openFaqIndex === idx;
-              return (
-                <div
-                  key={idx}
-                  onClick={() => toggleFaq(idx)}
-                  className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                    isOpen ? 'bg-indigo-50/60 border-indigo-300' : 'bg-white border-slate-200 hover:bg-slate-50'
-                  }`}
+                <button
+                  type="button"
+                  onClick={() => setTerminalRoleTab('sekolah')}
+                  className={terminalRoleTab === 'sekolah' ? styles.terminalRoleTabActive : styles.terminalRoleTab}
                 >
-                  <div className="flex items-center justify-between font-bold text-slate-900">
-                    <span>{faq.q}</span>
-                    <ChevronDown className={`w-4 h-4 text-indigo-600 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                  </div>
-                  {isOpen && (
-                    <p className="mt-2 text-slate-600 font-medium border-t border-indigo-100 pt-2 animate-fade-in-fast">
-                      {faq.a}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+                  Untuk Sekolah
+                </button>
+              </div>
 
-      {/* 11. Banner CTA Final */}
-      <section className="py-14 bg-slate-900 text-white text-center space-y-4">
-        <div className="max-w-3xl mx-auto px-4 space-y-3">
-          <h2 className="text-2xl sm:text-3xl font-black">Siap Gelar Ujian Online Lebih Cepat?</h2>
-          <p className="text-slate-400 text-xs font-semibold">Daftar akun gratis sekarang dan rasakan kemudahannya.</p>
-          <div className="pt-2 flex justify-center gap-3">
-            <Link to="/register" className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs shadow-md">
-              Daftar Akun Gratis
-            </Link>
-            <Link to="/login" className="px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700">
-              Masuk
-            </Link>
+              {/* Dynamic Benefits Checklist */}
+              <div className={styles.terminalBenefitList}>
+                {terminalRoleTab === 'guru' ? (
+                  <>
+                    <div className={styles.terminalBenefitItem}>
+                      <CheckCircle2 style={{ width: '15px', height: '15px', color: '#10B981', flexShrink: 0 }} />
+                      <span>Gratis 50 siswa per sesi evaluasi</span>
+                    </div>
+                    <div className={styles.terminalBenefitItem}>
+                      <CheckCircle2 style={{ width: '15px', height: '15px', color: '#10B981', flexShrink: 0 }} />
+                      <span>Ekstraksi soal dari PDF / dokumen</span>
+                    </div>
+                    <div className={styles.terminalBenefitItem}>
+                      <CheckCircle2 style={{ width: '15px', height: '15px', color: '#10B981', flexShrink: 0 }} />
+                      <span>Koreksi instan & rekap nilai Excel rapor</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className={styles.terminalBenefitItem}>
+                      <CheckCircle2 style={{ width: '15px', height: '15px', color: '#10B981', flexShrink: 0 }} />
+                      <span>Skalabilitas 1.000+ siswa serentak tanpa drop</span>
+                    </div>
+                    <div className={styles.terminalBenefitItem}>
+                      <CheckCircle2 style={{ width: '15px', height: '15px', color: '#10B981', flexShrink: 0 }} />
+                      <span>Bank soal institusi terenkripsi & aman</span>
+                    </div>
+                    <div className={styles.terminalBenefitItem}>
+                      <CheckCircle2 style={{ width: '15px', height: '15px', color: '#10B981', flexShrink: 0 }} />
+                      <span>Pemantauan proktor lintas ruang ujian</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className={styles.terminalButtonStack}>
+                <Link to="/register" className={styles.terminalPrimaryBtn}>
+                  <span>Daftar Akun Pengajar Gratis</span>
+                  <ArrowRight style={{ width: '18px', height: '18px' }} />
+                </Link>
+                <Link to="/login" className={styles.terminalSecondaryBtn}>
+                  <span>Masuk ke Dashboard Guru</span>
+                </Link>
+              </div>
+
+              <div className={styles.terminalGuarantees}>
+                <span>✓ Tanpa Kartu Kredit</span>
+                <span>•</span>
+                <span>✓ Akses Browser</span>
+                <span>•</span>
+                <span>✓ Siap 2 Menit</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* 12. Footer */}
-      <footer className="py-6 bg-slate-950 text-slate-400 border-t border-slate-800 text-xs font-medium">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <ExamigoLogo size="sm" showText={true} />
-            <span className="text-slate-500 ml-2">© 2026 AI Online Exam Builder.</span>
+      <footer className={styles.footer}>
+        <div className={styles.footerContainer}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <ExamigoLogo size="sm" showText={true} variant="dark" />
+            <span style={{ color: 'var(--theme-text-muted, #047857)', fontWeight: 600 }}>© 2026 Examigo. All rights reserved. Platform Ujian Online Indonesia.</span>
           </div>
 
-          <div className="flex items-center gap-5">
-            <Link to="/login" className="hover:text-white">Masuk</Link>
-            <Link to="/register" className="hover:text-white">Daftar</Link>
-            <a href="#fitur" className="hover:text-white">Fitur</a>
-            <a href="#harga" className="hover:text-white">Harga</a>
-            <a href="#faq" className="hover:text-white">FAQ</a>
+          <div className={styles.footerLinks}>
+            <Link to="/login">Masuk</Link>
+            <Link to="/register">Daftar</Link>
+            <a href="#fitur">Fitur</a>
+            <a href="#harga">Harga</a>
+            <a href="#faq">FAQ</a>
           </div>
         </div>
       </footer>
 
-      {/* 13. Pakasir Payment Gateway Modal */}
+      {/* 13. Midtrans Payment Gateway Modal */}
       {paymentModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5 relative animate-in fade-in zoom-in duration-200">
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(6,78,59,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ background: '#fff', borderRadius: '24px', maxWidth: '440px', width: '100%', padding: '1.5rem', boxShadow: '0 25px 50px -12px rgba(6,78,59,0.3)', display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1px solid var(--theme-border, #A7F3D0)' }}>
             
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
-                  P
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--theme-mint-light, #ECFDF5)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'var(--theme-primary-dark, #064E3B)', color: '#fff', fontWeight: 900, fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  M
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-slate-900 text-sm">Pakasir Payment Gateway</h3>
-                  <p className="text-[10px] text-slate-500 font-medium">Sistem Pembayaran Instan QRIS & Bank Transfer</p>
+                  <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 900, color: 'var(--theme-primary-dark, #064E3B)' }}>Midtrans Payment Gateway</h3>
+                  <p style={{ margin: 0, fontSize: '10px', color: 'var(--theme-text-muted, #047857)', fontWeight: 600 }}>Sistem Pembayaran Instan QRIS, VA & E-Wallet</p>
                 </div>
               </div>
               <button 
                 onClick={() => setPaymentModalOpen(false)}
-                className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center text-xs cursor-pointer"
+                style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--theme-mint-light, #ECFDF5)', border: 'none', color: 'var(--theme-primary-dark, #064E3B)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}
               >
-                ✕
+                <X style={{ width: '14px', height: '14px' }} />
               </button>
             </div>
 
             {/* Content Body */}
             {isProcessingPayment ? (
-              <div className="py-10 text-center space-y-3">
-                <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-xs font-bold text-slate-700">Menghubungkan ke Pakasir Payment Gateway...</p>
-                <p className="text-[10px] text-slate-400">Memproses checkout aman terenkripsi</p>
+              <div style={{ padding: '2.5rem 0', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ width: '36px', height: '36px', border: '3px solid var(--theme-primary, #059669)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                <p style={{ fontSize: '12px', fontWeight: 800, color: 'var(--theme-primary-dark, #064E3B)', margin: 0 }}>Menghubungkan ke Midtrans Gateway...</p>
               </div>
             ) : paymentError ? (
-              <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold space-y-2 text-center">
-                <p>{paymentError}</p>
+              <div style={{ padding: '1rem', borderRadius: '12px', background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: '12px', fontWeight: 700, textAlign: 'center' }}>
+                <p style={{ margin: '0 0 0.5rem 0' }}>{paymentError}</p>
                 <button 
-                  onClick={() => handleInitiatePakasirPayment(selectedPlan || 'PERSONAL')}
-                  className="px-4 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold cursor-pointer"
+                  onClick={() => handleInitiateMidtransPayment(selectedPlan || 'PERSONAL')}
+                  style={{ padding: '0.375rem 1rem', background: '#DC2626', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}
                 >
                   Coba Lagi
                 </button>
               </div>
             ) : (
-              <div className="space-y-4 text-xs">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '12px' }}>
                 
                 {/* Order Summary */}
-                <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100 space-y-2">
-                  <div className="flex justify-between items-center text-slate-600">
+                <div style={{ padding: '1rem', borderRadius: '14px', background: 'var(--theme-bg, #F0FDF4)', border: '1px solid var(--theme-border, #A7F3D0)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--theme-text-muted, #047857)' }}>
                     <span>Paket Dipilih</span>
-                    <span className="font-bold text-slate-900">{selectedPlan === 'PRO_AI' ? '⭐ Pro AI' : '👤 Personal'}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-slate-600">
-                    <span>Total Tagihan</span>
-                    <span className="font-black text-indigo-700 text-base">
-                      {selectedPlan === 'PRO_AI' ? 'Rp 149.000' : 'Rp 49.000'}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--theme-primary-dark, #064E3B)', fontWeight: 800 }}>
+                      {selectedPlan === 'PRO_AI' ? (
+                        <>
+                          <Sparkles style={{ width: '13px', height: '13px', color: 'var(--theme-primary, #059669)' }} />
+                          Paket Pro
+                        </>
+                      ) : (
+                        <>
+                          <User style={{ width: '13px', height: '13px', color: 'var(--theme-primary, #059669)' }} />
+                          Personal
+                        </>
+                      )}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-[10px] text-slate-400 border-t border-indigo-100/60 pt-2">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--theme-text-muted, #047857)' }}>
+                    <span>Total Tagihan</span>
+                    <strong style={{ color: 'var(--theme-primary-dark, #064E3B)', fontSize: '16px' }}>
+                      {selectedPlan === 'PRO_AI' ? 'Rp 149.000' : 'Rp 49.000'}
+                    </strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--theme-primary, #059669)', borderTop: '1px solid var(--theme-border, #A7F3D0)', paddingTop: '0.5rem' }}>
                     <span>Order ID</span>
-                    <span className="font-mono text-slate-600 font-bold">{activeOrder?.orderId}</span>
+                    <span style={{ fontFamily: 'monospace', color: 'var(--theme-primary-dark, #064E3B)', fontWeight: 700 }}>{activeOrder?.orderId}</span>
                   </div>
-                </div>
-
-                {/* Integration Info Badge */}
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] text-slate-600 font-bold">Metode Pembayaran Resmi:</span>
-                    <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded uppercase tracking-wider">Terverifikasi</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">
-                    Mendukung pembayaran otomatis melalui <strong>QRIS (GoPay, OVO, ShopeePay, DANA)</strong> & <strong>Virtual Account Bank</strong>.
-                  </p>
                 </div>
 
                 {/* Status Message */}
                 {verificationStatus && (
-                  <div className={`p-3 rounded-xl text-xs font-bold text-center ${verificationStatus.includes('Lunas') ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}>
+                  <div style={{ padding: '0.75rem', borderRadius: '10px', fontSize: '12px', fontWeight: 700, textAlign: 'center', background: verificationStatus.includes('Lunas') ? 'var(--theme-mint-light, #ECFDF5)' : '#FFFBEB', color: verificationStatus.includes('Lunas') ? 'var(--theme-primary-dark, #065F46)' : '#92400E', border: verificationStatus.includes('Lunas') ? '1px solid var(--theme-border, #A7F3D0)' : '1px solid #FDE68A' }}>
                     {verificationStatus}
                   </div>
                 )}
 
                 {/* Actions */}
-                <div className="space-y-2 pt-1">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {activeOrder?.snapToken && (
+                    <button
+                      onClick={() => {
+                        if (window.snap) {
+                          window.snap.pay(activeOrder.snapToken, {
+                            onSuccess: () => {
+                              setVerificationStatus('Pembayaran Lunas! Akun berhasil di-upgrade.');
+                              setTimeout(() => {
+                                setPaymentModalOpen(false);
+                                navigate('/dashboard');
+                              }, 1500);
+                            },
+                            onPending: () => {
+                              setVerificationStatus('Status: Menunggu Pembayaran. Silakan selesaikan transaksi.');
+                            },
+                            onError: () => {
+                              setPaymentError('Pembayaran gagal diproses melalui Midtrans.');
+                            },
+                            onClose: () => {
+                              handleVerifyMidtransStatus();
+                            }
+                          });
+                        } else if (activeOrder?.paymentUrl) {
+                          window.open(activeOrder.paymentUrl, '_blank');
+                        }
+                      }}
+                      style={{ padding: '0.875rem', borderRadius: '12px', background: 'linear-gradient(to right, var(--theme-primary-dark, #064E3B), var(--theme-primary, #10B981))', color: '#fff', fontWeight: 900, fontSize: '12px', textAlign: 'center', border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(16,185,129,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    >
+                      <CreditCard style={{ width: '15px', height: '15px' }} />
+                      <span>Buka Pop-up Pembayaran Midtrans</span>
+                    </button>
+                  )}
+
                   {activeOrder?.paymentUrl && (
                     <a
                       href={activeOrder.paymentUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-extrabold text-xs text-center block shadow-md transition-all"
+                      style={{ padding: '0.625rem', borderRadius: '12px', background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#334155', fontWeight: 800, fontSize: '11px', textAlign: 'center', textDecoration: 'none', display: 'block' }}
                     >
-                      💳 Bayar Seketika di Pakasir (QRIS / Bank)
+                      ↗ Buka Link Pembayaran di Tab Baru
                     </a>
                   )}
 
                   <button
-                    onClick={handleVerifyPakasirStatus}
-                    className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs cursor-pointer transition-colors"
+                    onClick={handleVerifyMidtransStatus}
+                    style={{ padding: '0.625rem', borderRadius: '12px', background: 'var(--theme-mint-light, #ECFDF5)', border: '1px solid var(--theme-border, #A7F3D0)', color: 'var(--theme-primary-dark, #064E3B)', fontWeight: 800, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                   >
-                    🔄 Cek Status Pembayaran
+                    <RefreshCw style={{ width: '14px', height: '14px' }} />
+                    <span>Cek Status Pembayaran</span>
                   </button>
                 </div>
 
               </div>
             )}
 
-            {/* Modal Footer */}
-            <div className="text-center pt-1 border-t border-slate-100 text-[10px] text-slate-400 font-medium">
-              Powered by Pakasir Payment Gateway • Transaksi Aman & Terenkripsi
+            <div style={{ textAlign: 'center', borderTop: '1px solid var(--theme-mint-light, #ECFDF5)', paddingTop: '0.5rem', fontSize: '10px', color: 'var(--theme-text-muted, #047857)', fontWeight: 600 }}>
+              Powered by Midtrans Payment Gateway • Transaksi Aman & Terenkripsi
             </div>
 
           </div>

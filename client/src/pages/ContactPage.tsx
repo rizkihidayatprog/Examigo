@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, ArrowLeft, Send, CheckCircle2, MessageSquare, PhoneCall, HelpCircle } from 'lucide-react';
 import Footer from '../components/Footer';
+import SEO from '../components/common/SEO';
 
 export default function ContactPage() {
   const [name, setName] = useState('');
@@ -24,13 +25,18 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between">
+      <SEO
+        title="Hubungi Kami"
+        description="Hubungi tim Examigo untuk pertanyaan seputar platform ujian CBT, kendala teknis, konsultasi kerjasama sekolah, atau paket institusi."
+        canonical="https://examigo.id/contact"
+      />
       <div className="max-w-4xl mx-auto px-4 py-12 space-y-8 animate-fade-in-fast w-full">
         <div className="space-y-3 border-b border-slate-200 pb-6">
-          <Link to="/" className="inline-flex items-center gap-2 text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors mb-2">
+          <Link to="/" className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-slate-700 transition-colors mb-2">
             <ArrowLeft className="w-4 h-4" /> Kembali ke Beranda
           </Link>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center">
               <MessageSquare className="w-5 h-5" />
             </div>
             <div>
@@ -44,27 +50,27 @@ export default function ContactPage() {
           {/* Contact Cards */}
           <div className="space-y-4">
             <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
-              <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-lg bg-slate-50 text-slate-600 flex items-center justify-center">
                 <Mail className="w-5 h-5" />
               </div>
               <h3 className="text-sm font-bold text-slate-900">Email Dukungan</h3>
-              <p className="text-xs text-indigo-600 font-bold font-mono">support@examigo.id</p>
+              <p className="text-xs text-edu-electric font-bold font-mono">support@examigo.id</p>
               <p className="text-[11px] text-slate-500 font-medium">Respons dalam 1x24 jam kerja.</p>
             </div>
 
             <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
-              <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-lg bg-emerald-50 text-edu-sage flex items-center justify-center">
                 <PhoneCall className="w-5 h-5" />
               </div>
               <h3 className="text-sm font-bold text-slate-900">WhatsApp Center</h3>
-              <p className="text-xs text-emerald-600 font-bold font-mono">+62 812-3456-7890</p>
+              <p className="text-xs text-edu-sage font-bold font-mono">+62 812-3456-7890</p>
               <p className="text-[11px] text-slate-500 font-medium">Senin - Jumat (08.00 - 17.00 WIB)</p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-indigo-900 text-white shadow-md space-y-2">
-              <HelpCircle className="w-6 h-6 text-indigo-300" />
+            <div className="p-5 rounded-2xl bg-edu-navy text-white shadow-md space-y-2">
+              <HelpCircle className="w-6 h-6 text-slate-300" />
               <h3 className="text-sm font-bold">Layanan Enterprise?</h3>
-              <p className="text-xs text-indigo-200 font-medium leading-relaxed">
+              <p className="text-xs text-slate-200 font-medium leading-relaxed">
                 Ingin integrasi Examigo untuk seluruh sekolah/kampus Anda? Kontak kami untuk penawaran khusus.
               </p>
             </div>
@@ -99,7 +105,7 @@ export default function ContactPage() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Masukkan nama lengkap"
-                      className="w-full rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-900 font-medium focus:outline-none focus:border-indigo-600 transition-colors"
+                      className="w-full rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-900 font-medium focus:outline-none focus:border-slate-600 transition-colors"
                     />
                   </div>
 
@@ -111,7 +117,7 @@ export default function ContactPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="nama@domain.com"
-                      className="w-full rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-900 font-medium focus:outline-none focus:border-indigo-600 transition-colors"
+                      className="w-full rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-900 font-medium focus:outline-none focus:border-slate-600 transition-colors"
                     />
                   </div>
                 </div>
@@ -123,8 +129,8 @@ export default function ContactPage() {
                     required
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    placeholder="Contoh: Pertanyaan Paket Pro AI / Kendala Bayar"
-                    className="w-full rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-900 font-medium focus:outline-none focus:border-indigo-600 transition-colors"
+                    placeholder="Contoh: Pertanyaan Paket Pro / Kendala Bayar"
+                    className="w-full rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-900 font-medium focus:outline-none focus:border-slate-600 transition-colors"
                   />
                 </div>
 
@@ -136,14 +142,14 @@ export default function ContactPage() {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Tuliskan pesan Anda secara detail..."
-                    className="w-full rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-900 font-medium focus:outline-none focus:border-indigo-600 transition-colors leading-relaxed"
+                    className="w-full rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-900 font-medium focus:outline-none focus:border-slate-600 transition-colors leading-relaxed"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md min-h-[48px] disabled:opacity-50"
+                  className="w-full py-3.5 rounded-xl bg-slate-600 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md min-h-[48px] disabled:opacity-50"
                 >
                   <Send className="w-4 h-4" /> {loading ? 'Sending...' : 'Kirim Pesan Sekarang'}
                 </button>

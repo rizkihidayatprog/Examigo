@@ -74,8 +74,17 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       .map((p) => ({
         id: p.id,
         studentName: p.studentName,
-        studentEmail: p.studentEmail,
+        studentEmail: (p.studentEmail && !p.studentEmail.includes('@student.examigo.id')) ? p.studentEmail : null,
+        customFields: (() => {
+          try {
+            return p.customFields ? JSON.parse(p.customFields) : null;
+          } catch {
+            return null;
+          }
+        })(),
         examTitle: p.exam.title,
+        examCode: p.exam.code,
+        hasCertificate: p.exam.hasCertificate,
         subjectName: p.exam.subject ? p.exam.subject.name : 'Umum',
         grade: p.exam.grade || 'Umum',
         score: p.result!.percentage,
@@ -207,7 +216,7 @@ router.get('/participant/:id', authenticateToken, async (req: Request, res: Resp
       data: {
         id: participant.id,
         studentName: participant.studentName,
-        studentEmail: participant.studentEmail,
+        studentEmail: (participant.studentEmail && !participant.studentEmail.includes('@student.examigo.id')) ? participant.studentEmail : null,
         examTitle: participant.exam.title,
         examCode: participant.exam.code,
         subjectName: participant.exam.subject ? participant.exam.subject.name : 'Umum',
@@ -259,7 +268,14 @@ router.get('/live/:examId', authenticateToken, async (req: Request, res: Respons
     const liveData = participants.map(p => ({
       id: p.id,
       studentName: p.studentName,
-      studentEmail: p.studentEmail,
+      studentEmail: (p.studentEmail && !p.studentEmail.includes('@student.examigo.id')) ? p.studentEmail : null,
+      customFields: (() => {
+        try {
+          return p.customFields ? JSON.parse(p.customFields) : null;
+        } catch {
+          return null;
+        }
+      })(),
       status: p.status,
       startedAt: p.startedAt,
       submittedAt: p.submittedAt,
