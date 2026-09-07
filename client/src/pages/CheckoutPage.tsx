@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Sparkles, Check, ArrowLeft, ShieldCheck, Tag, CreditCard, User, Star, AlertTriangle } from 'lucide-react';
+import { Sparkles, Check, ArrowLeft, ShieldCheck, Tag, CreditCard, User, Star, AlertTriangle, QrCode } from 'lucide-react';
 import ExamigoLogo from '../components/common/ExamigoLogo';
 import { useAuth } from '../lib/auth';
-import { processMidtransCheckout } from '../lib/payment';
+import { processCheckout } from '../lib/payment';
 import SEO from '../components/common/SEO';
 
 export default function CheckoutPage() {
@@ -26,6 +26,8 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [cmsConfig, setCmsConfig] = useState<any>(null);
+  const [selectedGateway, setSelectedGateway] = useState<'BITS_QRIS' | 'MIDTRANS'>('MIDTRANS');
+  const [paymentMethod, setPaymentMethod] = useState<string>('QRIS');
 
   useEffect(() => {
     fetch('/api/public/landing-config')
@@ -33,6 +35,13 @@ export default function CheckoutPage() {
       .then(data => {
         if (data.success && data.data) {
           setCmsConfig(data.data);
+          const activeGw = data.data.paymentGateway?.activeGateway;
+          if (activeGw === 'MIDTRANS') {
+            setSelectedGateway('MIDTRANS');
+          } else if (activeGw === 'BITS_QRIS') {
+            setSelectedGateway('BITS_QRIS');
+            setPaymentMethod('QRIS');
+          }
         }
       })
       .catch(err => console.error('Failed to load CMS config for checkout:', err));
@@ -41,12 +50,12 @@ export default function CheckoutPage() {
   // Base Prices from CMS or Defaults
   const basePrices = {
     PERSONAL: {
-      MONTHLY: cmsConfig?.pricing?.personal?.monthlyPrice || 49000,
-      YEARLY: cmsConfig?.pricing?.personal?.yearlyPrice || 490000,
+      MONTHLY: typeof cmsConfig?.pricing?.personal?.monthlyPrice === 'number' ? cmsConfig.pricing.personal.monthlyPrice : 49000,
+      YEARLY: typeof cmsConfig?.pricing?.personal?.yearlyPrice === 'number' ? cmsConfig.pricing.personal.yearlyPrice : 490000,
     },
     PRO_AI: {
-      MONTHLY: cmsConfig?.pricing?.pro_ai?.monthlyPrice || 149000,
-      YEARLY: cmsConfig?.pricing?.pro_ai?.yearlyPrice || 1490000,
+      MONTHLY: typeof cmsConfig?.pricing?.pro_ai?.monthlyPrice === 'number' ? cmsConfig.pricing.pro_ai.monthlyPrice : 149000,
+      YEARLY: typeof cmsConfig?.pricing?.pro_ai?.yearlyPrice === 'number' ? cmsConfig.pricing.pro_ai.yearlyPrice : 1490000,
     },
   };
 
@@ -99,11 +108,15 @@ export default function CheckoutPage() {
         return;
       }
 
-      const result = await processMidtransCheckout(
+      const effectiveGateway = (selectedGateway === 'BITS_QRIS' && paymentMethod === 'QRIS') ? 'BITS_QRIS' : 'MIDTRANS';
+
+      const result = await processCheckout(
         selectedPlan, 
         billingCycle,
         user || { id: '', email: 'pengajar@examigo.com', name: 'Pengajar Examigo' },
-        appliedCouponCode || undefined
+        appliedCouponCode || undefined,
+        effectiveGateway,
+        paymentMethod
       );
 
       if (result.autoPaid) {
@@ -304,6 +317,176 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            {/* 3. Select Payment Method */}
+            <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-black text-slate-900 text-sm flex items-center gap-2">
+                  <span 
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black"
+                    style={{ backgroundColor: 'var(--theme-mint-subtle, #D1FAE5)', color: 'var(--theme-primary-dark, #064E3B)' }}
+                  >
+                    3
+                  </span>
+                  Pilih Metode Pembayaran
+                </h3>
+                <span className="text-[10px] font-bold text-slate-400">Verifikasi Otomatis 24 Jam</span>
+              </div>
+
+              {cmsConfig?.paymentGateway?.activeGateway === 'BITS_QRIS' ? (
+                <div 
+                  onClick={() => { setPaymentMethod('QRIS'); setSelectedGateway('BITS_QRIS'); }}
+                  className="p-4 rounded-2xl border-2 cursor-pointer transition-all border-[var(--theme-primary)] bg-[var(--theme-mint-light)] relative shadow-sm"
+                >
+                  <span 
+                    className="absolute -top-2.5 right-3 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1"
+                    style={{ backgroundColor: 'var(--theme-primary, #10B981)' }}
+                  >
+                    INSTAN & TERVERIFIKASI
+                  </span>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-black text-slate-900 text-xs flex items-center gap-1.5">
+                      <QrCode className="w-4 h-4" style={{ color: 'var(--theme-primary, #059669)' }} /> QRIS Dinamis
+                    </span>
+                    <Check className="w-4 h-4" style={{ color: 'var(--theme-primary, #059669)' }} />
+                  </div>
+                  <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                    Scan langsung dari BCA, Mandiri, BRI, BNI, GoPay, OVO, Dana, ShopeePay.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Option 1: QRIS Dinamis (Primary Recommended) */}
+                  <div 
+                    onClick={() => setPaymentMethod('QRIS')}
+                    className={`p-4 rounded-2xl border-2 cursor-pointer transition-all relative ${
+                      paymentMethod === 'QRIS'
+                        ? 'shadow-sm'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                    style={paymentMethod === 'QRIS' ? {
+                      borderColor: 'var(--theme-primary, #10B981)',
+                      backgroundColor: 'var(--theme-mint-light, #ECFDF5)'
+                    } : undefined}
+                  >
+                    <span 
+                      className="absolute -top-2.5 right-3 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1"
+                      style={{ backgroundColor: 'var(--theme-primary, #10B981)' }}
+                    >
+                      INSTAN & PALING PRAKTIS
+                    </span>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-red-600 text-white flex items-center justify-center font-black text-[10px]">
+                          QRIS
+                        </div>
+                        <div>
+                          <span className="font-black text-slate-900 text-xs block">QRIS (Semua Bank & E-Wallet)</span>
+                          <span className="text-[10px] text-slate-500 font-medium">BCA, Mandiri, BRI, BNI, GoPay, OVO, Dana, ShopeePay</span>
+                        </div>
+                      </div>
+                      {paymentMethod === 'QRIS' && <Check className="w-4 h-4" style={{ color: 'var(--theme-primary, #059669)' }} />}
+                    </div>
+                  </div>
+
+                  {/* Option 2: Virtual Account List */}
+                  <div className="pt-2">
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2">Virtual Account Bank</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {/* BCA */}
+                      <div 
+                        onClick={() => setPaymentMethod('BCA_VA')}
+                        className={`p-3 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-between ${
+                          paymentMethod === 'BCA_VA' ? 'shadow-xs' : 'border-slate-200 hover:border-slate-300 bg-white'
+                        }`}
+                        style={paymentMethod === 'BCA_VA' ? {
+                          borderColor: 'var(--theme-primary, #10B981)',
+                          backgroundColor: 'var(--theme-mint-light, #ECFDF5)'
+                        } : undefined}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="px-2 py-0.5 rounded bg-blue-700 text-white font-black text-[10px] tracking-wide">BCA</span>
+                          <span className="text-xs font-bold text-slate-800">BCA Virtual Account</span>
+                        </div>
+                        {paymentMethod === 'BCA_VA' && <Check className="w-3.5 h-3.5" style={{ color: 'var(--theme-primary, #059669)' }} />}
+                      </div>
+
+                      {/* Mandiri */}
+                      <div 
+                        onClick={() => setPaymentMethod('MANDIRI_VA')}
+                        className={`p-3 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-between ${
+                          paymentMethod === 'MANDIRI_VA' ? 'shadow-xs' : 'border-slate-200 hover:border-slate-300 bg-white'
+                        }`}
+                        style={paymentMethod === 'MANDIRI_VA' ? {
+                          borderColor: 'var(--theme-primary, #10B981)',
+                          backgroundColor: 'var(--theme-mint-light, #ECFDF5)'
+                        } : undefined}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="px-2 py-0.5 rounded bg-blue-950 text-amber-400 font-black text-[10px] tracking-wide">MANDIRI</span>
+                          <span className="text-xs font-bold text-slate-800">Mandiri Bill Payment</span>
+                        </div>
+                        {paymentMethod === 'MANDIRI_VA' && <Check className="w-3.5 h-3.5" style={{ color: 'var(--theme-primary, #059669)' }} />}
+                      </div>
+
+                      {/* BNI */}
+                      <div 
+                        onClick={() => setPaymentMethod('BNI_VA')}
+                        className={`p-3 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-between ${
+                          paymentMethod === 'BNI_VA' ? 'shadow-xs' : 'border-slate-200 hover:border-slate-300 bg-white'
+                        }`}
+                        style={paymentMethod === 'BNI_VA' ? {
+                          borderColor: 'var(--theme-primary, #10B981)',
+                          backgroundColor: 'var(--theme-mint-light, #ECFDF5)'
+                        } : undefined}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="px-2 py-0.5 rounded bg-teal-800 text-orange-400 font-black text-[10px] tracking-wide">BNI</span>
+                          <span className="text-xs font-bold text-slate-800">BNI Virtual Account</span>
+                        </div>
+                        {paymentMethod === 'BNI_VA' && <Check className="w-3.5 h-3.5" style={{ color: 'var(--theme-primary, #059669)' }} />}
+                      </div>
+
+                      {/* BRI */}
+                      <div 
+                        onClick={() => setPaymentMethod('BRI_VA')}
+                        className={`p-3 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-between ${
+                          paymentMethod === 'BRI_VA' ? 'shadow-xs' : 'border-slate-200 hover:border-slate-300 bg-white'
+                        }`}
+                        style={paymentMethod === 'BRI_VA' ? {
+                          borderColor: 'var(--theme-primary, #10B981)',
+                          backgroundColor: 'var(--theme-mint-light, #ECFDF5)'
+                        } : undefined}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="px-2 py-0.5 rounded bg-blue-600 text-white font-black text-[10px] tracking-wide">BRI</span>
+                          <span className="text-xs font-bold text-slate-800">BRI (BRIVA)</span>
+                        </div>
+                        {paymentMethod === 'BRI_VA' && <Check className="w-3.5 h-3.5" style={{ color: 'var(--theme-primary, #059669)' }} />}
+                      </div>
+
+                      {/* Permata */}
+                      <div 
+                        onClick={() => setPaymentMethod('PERMATA_VA')}
+                        className={`p-3 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-between ${
+                          paymentMethod === 'PERMATA_VA' ? 'shadow-xs' : 'border-slate-200 hover:border-slate-300 bg-white'
+                        }`}
+                        style={paymentMethod === 'PERMATA_VA' ? {
+                          borderColor: 'var(--theme-primary, #10B981)',
+                          backgroundColor: 'var(--theme-mint-light, #ECFDF5)'
+                        } : undefined}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="px-2 py-0.5 rounded bg-emerald-800 text-white font-black text-[10px] tracking-wide">PERMATA</span>
+                          <span className="text-xs font-bold text-slate-800">Permata VA</span>
+                        </div>
+                        {paymentMethod === 'PERMATA_VA' && <Check className="w-3.5 h-3.5" style={{ color: 'var(--theme-primary, #059669)' }} />}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Promo Code Input */}
             <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3">
               <h3 className="font-black text-slate-900 text-xs flex items-center gap-1.5">
@@ -367,6 +550,18 @@ export default function CheckoutPage() {
                 <div className="flex justify-between items-center">
                   <span>Periode Billing</span>
                   <span className="font-bold text-slate-900">{billingCycle === 'YEARLY' ? 'Tahunan' : 'Bulanan'}</span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span>Metode Bayar</span>
+                  <span className="font-bold text-slate-900">
+                    {paymentMethod === 'QRIS' ? 'QRIS Dinamis' :
+                     paymentMethod === 'BCA_VA' ? 'BCA Virtual Account' :
+                     paymentMethod === 'MANDIRI_VA' ? 'Mandiri Bill Payment' :
+                     paymentMethod === 'BNI_VA' ? 'BNI Virtual Account' :
+                     paymentMethod === 'BRI_VA' ? 'BRI Virtual Account' :
+                     paymentMethod === 'PERMATA_VA' ? 'Permata Virtual Account' : paymentMethod}
+                  </span>
                 </div>
 
                 <div className="flex justify-between items-center">

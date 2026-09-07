@@ -30,7 +30,10 @@ import {
   Wrench,
   CreditCard,
   GraduationCap,
-  ShieldAlert
+  ShieldAlert,
+  QrCode,
+  Sliders,
+  Gauge
 } from 'lucide-react';
 import { api } from '../../lib/auth';
 import { applyDynamicTheme, THEME_PRESETS } from '../../lib/theme';
@@ -44,7 +47,7 @@ const formatNumberWithDots = (val: number | string | undefined | null): string =
 };
 
 export default function AdminCmsPage() {
-  const [activeTab, setActiveTab] = useState<'pricing' | 'hero' | 'theme' | 'faqs' | 'ai_config' | 'auth_pages' | 'maintenance'>('pricing');
+  const [activeTab, setActiveTab] = useState<'pricing' | 'hero' | 'theme' | 'faqs' | 'ai_config' | 'auth_pages' | 'maintenance' | 'payment_gateway' | 'rate_limit'>('pricing');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -165,6 +168,45 @@ export default function AdminCmsPage() {
   });
   const [togglingMaintenance, setTogglingMaintenance] = useState(false);
 
+  // Dual Payment Gateway State (Midtrans & QRIS bits-qris)
+  const [paymentGateway, setPaymentGateway] = useState({
+    activeGateway: 'USER_CHOICE' as 'MIDTRANS' | 'BITS_QRIS' | 'USER_CHOICE',
+    midtrans: {
+      enabled: true,
+      isProduction: false,
+    },
+    qris: {
+      enabled: true,
+      staticQris: '',
+      merchantName: 'Examigo Edu Platform',
+      merchantCity: 'Jakarta',
+      useUniqueCode: true,
+      autoApprove: true,
+      expiryMinutes: 30,
+      instructions: '1. Buka aplikasi m-Banking atau E-Wallet (BCA, Mandiri, GoPay, OVO, Dana, ShopeePay, dll).\n2. Scan QR Code dinamis di atas.\n3. Pastikan nominal transfer sesuai hingga 3 digit terakhir.\n4. Selesaikan pembayaran dan klik tombol "Saya Sudah Bayar".',
+    }
+  });
+
+  const [validatingQris, setValidatingQris] = useState(false);
+  const [qrisValidationResult, setQrisValidationResult] = useState<{
+    valid: boolean;
+    message: string;
+    merchantInfo?: any;
+    previewQrDataUrl?: string;
+  } | null>(null);
+
+  // Rate Limiting & Developer Mode State
+  const [rateLimit, setRateLimit] = useState({
+    enabled: true,
+    paymentsMax: 100,
+    paymentsWindowMinutes: 5,
+    authMax: 100,
+    strictMax: 15,
+    aiMax: 30,
+    generalApiMax: 500,
+  });
+  const [resettingRateLimit, setResettingRateLimit] = useState(false);
+
   // Saved Snapshot for tracking unsaved modifications
   const [savedSnapshot, setSavedSnapshot] = useState<string>('');
 
@@ -177,6 +219,8 @@ export default function AdminCmsPage() {
     faqs,
     geminiApiKey,
     maintenance,
+    paymentGateway,
+    rateLimit,
   });
 
   const parsedSaved = React.useMemo(() => {
@@ -198,6 +242,8 @@ export default function AdminCmsPage() {
   const isFaqsDirty = Boolean(parsedSaved && JSON.stringify(faqs) !== JSON.stringify(parsedSaved.faqs));
   const isAiConfigDirty = Boolean(parsedSaved && geminiApiKey !== parsedSaved.geminiApiKey);
   const isMaintenanceDirty = Boolean(parsedSaved && JSON.stringify(maintenance) !== JSON.stringify(parsedSaved.maintenance));
+  const isPaymentGatewayDirty = Boolean(parsedSaved && JSON.stringify(paymentGateway) !== JSON.stringify(parsedSaved.paymentGateway));
+  const isRateLimitDirty = Boolean(parsedSaved && JSON.stringify(rateLimit) !== JSON.stringify(parsedSaved.rateLimit));
 
   const isDirty = Boolean(savedSnapshot && savedSnapshot !== currentSnapshot);
 
@@ -211,6 +257,12 @@ export default function AdminCmsPage() {
     setFaqs(parsedSaved.faqs);
     setGeminiApiKey(parsedSaved.geminiApiKey);
     setMaintenance(parsedSaved.maintenance);
+    if (parsedSaved.paymentGateway) {
+      setPaymentGateway(parsedSaved.paymentGateway);
+    }
+    if (parsedSaved.rateLimit) {
+      setRateLimit(parsedSaved.rateLimit);
+    }
     applyDynamicTheme(parsedSaved.theme);
     showToast('Perubahan dibatalkan. Mengembalikan ke setelan tersimpan.', 'success');
   };
@@ -279,6 +331,37 @@ export default function AdminCmsPage() {
         if (d.maintenance) setMaintenance(finalMaintenance);
         if (d.authPages) setAuthPages(finalAuthPages);
 
+        const finalPaymentGateway = d.paymentGateway ? {
+          activeGateway: d.paymentGateway.activeGateway || 'USER_CHOICE',
+          midtrans: {
+            enabled: d.paymentGateway.midtrans?.enabled ?? true,
+            isProduction: d.paymentGateway.midtrans?.isProduction ?? false,
+          },
+          qris: {
+            enabled: d.paymentGateway.qris?.enabled ?? true,
+            staticQris: d.paymentGateway.qris?.staticQris || '',
+            merchantName: d.paymentGateway.qris?.merchantName || 'Examigo Edu Platform',
+            merchantCity: d.paymentGateway.qris?.merchantCity || 'Jakarta',
+            useUniqueCode: d.paymentGateway.qris?.useUniqueCode ?? true,
+            autoApprove: d.paymentGateway.qris?.autoApprove ?? true,
+            expiryMinutes: d.paymentGateway.qris?.expiryMinutes || 30,
+            instructions: d.paymentGateway.qris?.instructions || '',
+          }
+        } : paymentGateway;
+
+        const finalRateLimit = d.rateLimit ? {
+          enabled: d.rateLimit.enabled !== undefined ? Boolean(d.rateLimit.enabled) : true,
+          paymentsMax: Number(d.rateLimit.paymentsMax) || 100,
+          paymentsWindowMinutes: Number(d.rateLimit.paymentsWindowMinutes) || 5,
+          authMax: Number(d.rateLimit.authMax) || 100,
+          strictMax: Number(d.rateLimit.strictMax) || 15,
+          aiMax: Number(d.rateLimit.aiMax) || 30,
+          generalApiMax: Number(d.rateLimit.generalApiMax) || 500,
+        } : rateLimit;
+
+        setPaymentGateway(finalPaymentGateway);
+        setRateLimit(finalRateLimit);
+
         setSavedSnapshot(JSON.stringify({
           theme: finalTheme,
           hero: finalHero,
@@ -288,6 +371,8 @@ export default function AdminCmsPage() {
           faqs: finalFaqs,
           geminiApiKey: finalGeminiApiKey,
           maintenance: finalMaintenance,
+          paymentGateway: finalPaymentGateway,
+          rateLimit: finalRateLimit,
         }));
       }
     } catch (err: any) {
@@ -472,6 +557,8 @@ export default function AdminCmsPage() {
           faqs,
           geminiApiKey,
           maintenance,
+          paymentGateway,
+          rateLimit,
         }),
       });
       const data = await res.json();
@@ -486,6 +573,8 @@ export default function AdminCmsPage() {
           faqs,
           geminiApiKey,
           maintenance,
+          paymentGateway,
+          rateLimit,
         }));
         showToast('✓ Konfigurasi CMS berhasil disimpan!', 'success');
       } else {
@@ -495,6 +584,75 @@ export default function AdminCmsPage() {
       showToast('Terjadi kesalahan koneksi.', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Reset / Flush all Rate Limit blocks
+  const handleResetRateLimits = async () => {
+    try {
+      setResettingRateLimit(true);
+      const res = await api('/admin/cms/rate-limit-reset', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('🚀 ' + (data.message || 'Seluruh antrean rate limiter berhasil dibersihkan!'), 'success');
+      } else {
+        showToast(data.message || 'Gagal membersihkan antrean rate limit.', 'error');
+      }
+    } catch (err: any) {
+      showToast('Gagal menghubungi server.', 'error');
+    } finally {
+      setResettingRateLimit(false);
+    }
+  };
+
+  // Validate Static QRIS via backend bits-qris
+  const handleValidateQris = async () => {
+    const qrisStr = paymentGateway.qris.staticQris.trim();
+    if (!qrisStr) {
+      showToast('Harap masukkan string QRIS statis terlebih dahulu.', 'error');
+      return;
+    }
+    try {
+      setValidatingQris(true);
+      setQrisValidationResult(null);
+      const res = await api('/admin/cms/qris-validate', {
+        method: 'POST',
+        body: JSON.stringify({ staticQris: qrisStr })
+      });
+      const data = await res.json();
+      if (data.success && data.valid) {
+        setQrisValidationResult({
+          valid: true,
+          message: 'Format QRIS EMVCo valid & siap digunakan!',
+          merchantInfo: data.merchantInfo,
+          previewQrDataUrl: data.previewQrDataUrl,
+        });
+        if (data.merchantInfo?.merchantName && (!paymentGateway.qris.merchantName || paymentGateway.qris.merchantName === 'Examigo Edu Platform')) {
+          setPaymentGateway(prev => ({
+            ...prev,
+            qris: {
+              ...prev.qris,
+              merchantName: data.merchantInfo.merchantName,
+              merchantCity: data.merchantInfo.merchantCity || prev.qris.merchantCity,
+            }
+          }));
+        }
+        showToast('✓ String QRIS valid & terbaca!', 'success');
+      } else {
+        setQrisValidationResult({
+          valid: false,
+          message: data.message || 'String QRIS tidak valid',
+        });
+        showToast(data.message || 'String QRIS tidak valid', 'error');
+      }
+    } catch (err: any) {
+      setQrisValidationResult({
+        valid: false,
+        message: err.message || 'Gagal memvalidasi QRIS',
+      });
+      showToast('Gagal memvalidasi string QRIS.', 'error');
+    } finally {
+      setValidatingQris(false);
     }
   };
 
@@ -510,7 +668,7 @@ export default function AdminCmsPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [theme, hero, pricing, addonPricing, authPages, faqs, geminiApiKey, maintenance, saving]);
+  }, [theme, hero, pricing, addonPricing, authPages, faqs, geminiApiKey, maintenance, paymentGateway, saving]);
 
   // Warning when leaving or refreshing page if there are unsaved modifications
   useEffect(() => {
@@ -729,6 +887,50 @@ export default function AdminCmsPage() {
           <Wrench className="w-4 h-4 text-amber-400" /> 7. Mode Pemeliharaan
           {maintenance.enabled && <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse ml-0.5" />}
           {isMaintenanceDirty && (
+            <span className="flex h-2 w-2 relative ml-1" title="Perubahan belum disimpan">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab('payment_gateway')}
+          style={activeTab === 'payment_gateway' ? { backgroundColor: 'var(--theme-primary, #059669)' } : {}}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 relative ${
+            activeTab === 'payment_gateway'
+              ? 'text-white shadow-md'
+              : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
+          }`}
+        >
+          <CreditCard className="w-4 h-4 text-emerald-400" /> 8. Gateway Pembayaran
+          <span className="px-1.5 py-0.5 text-[9px] rounded-full bg-slate-800 text-emerald-400 font-extrabold uppercase">
+            {paymentGateway.activeGateway === 'USER_CHOICE' ? 'Dual' : paymentGateway.activeGateway === 'BITS_QRIS' ? 'QRIS' : 'Midtrans'}
+          </span>
+          {isPaymentGatewayDirty && (
+            <span className="flex h-2 w-2 relative ml-1" title="Perubahan belum disimpan">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab('rate_limit')}
+          style={activeTab === 'rate_limit' ? { backgroundColor: '#0284C7' } : {}}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 relative ${
+            activeTab === 'rate_limit'
+              ? 'text-white shadow-md'
+              : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
+          }`}
+        >
+          <Sliders className="w-4 h-4 text-cyan-400" /> 9. Rate Limiter & Dev Mode
+          <span className={`px-1.5 py-0.5 text-[9px] rounded-full font-extrabold uppercase ${
+            rateLimit.enabled ? 'bg-slate-800 text-cyan-400' : 'bg-amber-500/20 text-amber-300'
+          }`}>
+            {rateLimit.enabled ? 'Aktif' : 'Dev Mode (Bypass)'}
+          </span>
+          {isRateLimitDirty && (
             <span className="flex h-2 w-2 relative ml-1" title="Perubahan belum disimpan">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
@@ -2276,6 +2478,712 @@ export default function AdminCmsPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* TAB 8: DUAL PAYMENT GATEWAY (MIDTRANS & QRIS bits-qris) */}
+      {activeTab === 'payment_gateway' && (
+        <div className="space-y-6 animate-fade-in">
+          
+          {/* Active Gateway Mode Card */}
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6">
+            <div>
+              <div className="flex items-center gap-2.5 mb-1">
+                <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
+                  <CreditCard className="w-5 h-5" />
+                </span>
+                <h3 className="text-lg font-black text-white">Mode Gateway Pembayaran Aktif</h3>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Tentukan bagaimana pengguna membayar langganan dan kuota tambahan Examigo. Anda dapat mengaktifkan kedua gateway sekaligus (pengguna memilih di checkout) atau memilih salah satu saja.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Option 1: USER_CHOICE */}
+              <div 
+                onClick={() => setPaymentGateway(prev => ({ ...prev, activeGateway: 'USER_CHOICE' }))}
+                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+                  paymentGateway.activeGateway === 'USER_CHOICE'
+                    ? 'border-emerald-500 bg-emerald-950/20 shadow-lg shadow-emerald-950/40'
+                    : 'border-slate-800 hover:border-slate-700 bg-slate-950/50'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-black text-white flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-emerald-400" />
+                    Dual Gateway (Pilihan Pengguna)
+                  </span>
+                  {paymentGateway.activeGateway === 'USER_CHOICE' && (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Pengguna dapat memilih sendiri di halaman checkout antara <strong>QRIS Dinamis</strong> atau <strong>Midtrans</strong>.
+                </p>
+                <span className="mt-3 inline-block px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300">
+                  Rekomendasi
+                </span>
+              </div>
+
+              {/* Option 2: BITS_QRIS */}
+              <div 
+                onClick={() => setPaymentGateway(prev => ({ ...prev, activeGateway: 'BITS_QRIS' }))}
+                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+                  paymentGateway.activeGateway === 'BITS_QRIS'
+                    ? 'border-rose-500 bg-rose-950/20 shadow-lg shadow-rose-950/40'
+                    : 'border-slate-800 hover:border-slate-700 bg-slate-950/50'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-black text-white flex items-center gap-2">
+                    <QrCode className="w-4 h-4 text-rose-400" />
+                    QRIS Dinamis Saja (bits-qris)
+                  </span>
+                  {paymentGateway.activeGateway === 'BITS_QRIS' && (
+                    <CheckCircle2 className="w-4 h-4 text-rose-400" />
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Semua transaksi langsung diarahkan ke QR Code dinamis berbasis string QRIS statis merchant Anda dengan kode unik.
+                </p>
+                <span className="mt-3 inline-block px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-300">
+                  Direct Merchant QRIS
+                </span>
+              </div>
+
+              {/* Option 3: MIDTRANS */}
+              <div 
+                onClick={() => setPaymentGateway(prev => ({ ...prev, activeGateway: 'MIDTRANS' }))}
+                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+                  paymentGateway.activeGateway === 'MIDTRANS'
+                    ? 'border-blue-500 bg-blue-950/20 shadow-lg shadow-blue-950/40'
+                    : 'border-slate-800 hover:border-slate-700 bg-slate-950/50'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-black text-white flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-blue-400" />
+                    Midtrans Gateway Saja
+                  </span>
+                  {paymentGateway.activeGateway === 'MIDTRANS' && (
+                    <CheckCircle2 className="w-4 h-4 text-blue-400" />
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Menggunakan popup pembayaran resmi Midtrans Snap (Virtual Account bank otomatis, Kartu Kredit, GoPay/ShopeePay).
+                </p>
+                <span className="mt-3 inline-block px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-500/20 text-blue-300">
+                  Payment Gateway Resmi
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* QRIS bits-qris Configuration Card */}
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-rose-500/10 text-rose-400">
+                  <QrCode className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="text-lg font-black text-white">Konfigurasi Direct Dynamic QRIS (bits-qris)</h3>
+                  <p className="text-xs text-slate-400">
+                    Konversi QRIS Statis cetakan toko/merchant menjadi QRIS dinamis dengan nominal tagihan presisi.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-400">Status Modul QRIS:</span>
+                <button
+                  type="button"
+                  onClick={() => setPaymentGateway(prev => ({
+                    ...prev,
+                    qris: { ...prev.qris, enabled: !prev.qris.enabled }
+                  }))}
+                  className={`px-3 py-1 rounded-full text-xs font-black transition-colors cursor-pointer ${
+                    paymentGateway.qris.enabled 
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
+                      : 'bg-slate-800 text-slate-400 border border-slate-700'
+                  }`}
+                >
+                  {paymentGateway.qris.enabled ? 'AKTIF' : 'NONAKTIF'}
+                </button>
+              </div>
+            </div>
+
+            {/* Static QRIS String Input & Live Validator */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  String QRIS Statis EMVCo (000201...)
+                </label>
+                <span className="text-[10px] text-slate-500 font-medium">
+                  Bisa diisi di sini atau via ENV (QRIS_STATIC_STRING)
+                </span>
+              </div>
+              <textarea
+                rows={3}
+                value={paymentGateway.qris.staticQris}
+                onChange={(e) => setPaymentGateway(prev => ({
+                  ...prev,
+                  qris: { ...prev.qris, staticQris: e.target.value }
+                }))}
+                placeholder="Contoh: 00020101021126560014ID.CO.QRIS.WWW0115ID10231625260990215ID10231625260995204581253033605802ID5919BANTEN IT SOLUTIONS6006SERANG6304DA44"
+                className="w-full rounded-2xl bg-slate-950 border border-slate-800 px-4 py-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-rose-500 transition-colors"
+              />
+
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={handleValidateQris}
+                  disabled={validatingQris || !paymentGateway.qris.staticQris.trim()}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {validatingQris ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Memvalidasi...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Validasi & Cek Info Merchant</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Validation Result Box */}
+              {qrisValidationResult && (
+                <div className={`p-4 rounded-2xl border text-xs space-y-3 mt-3 ${
+                  qrisValidationResult.valid 
+                    ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200' 
+                    : 'bg-rose-950/30 border-rose-500/40 text-rose-200'
+                }`}>
+                  <div className="flex items-center gap-2 font-bold">
+                    {qrisValidationResult.valid ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <AlertCircle className="w-4 h-4 text-rose-400" />}
+                    <span>{qrisValidationResult.message}</span>
+                  </div>
+
+                  {qrisValidationResult.merchantInfo && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-[11px]">
+                      <div>
+                        <span className="text-slate-400 block">Nama Merchant:</span>
+                        <strong className="text-white text-xs">{qrisValidationResult.merchantInfo.merchantName || '-'}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">Kota:</span>
+                        <strong className="text-white text-xs">{qrisValidationResult.merchantInfo.merchantCity || '-'}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">NMID:</span>
+                        <strong className="font-mono text-emerald-300 text-xs">{qrisValidationResult.merchantInfo.nmid || '-'}</strong>
+                      </div>
+                    </div>
+                  )}
+
+                  {qrisValidationResult.previewQrDataUrl && (
+                    <div className="flex items-center gap-4 pt-1">
+                      <img 
+                        src={qrisValidationResult.previewQrDataUrl} 
+                        alt="Preview QR" 
+                        className="w-24 h-24 rounded-xl border border-slate-700 bg-white p-1 object-contain"
+                      />
+                      <div className="text-[11px] text-slate-300">
+                        <strong className="text-white block text-xs mb-1">Live Preview Dynamic QR</strong>
+                        QRIS dinamis berhasil dikonversi dengan nominal uji coba Rp 10.000. CRC16 valid dan siap dipindai.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Merchant Display Details */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">Nama Merchant (Label Header)</label>
+                <input
+                  type="text"
+                  value={paymentGateway.qris.merchantName}
+                  onChange={(e) => setPaymentGateway(prev => ({
+                    ...prev,
+                    qris: { ...prev.qris, merchantName: e.target.value }
+                  }))}
+                  placeholder="Examigo Edu Platform"
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">Kota Merchant</label>
+                <input
+                  type="text"
+                  value={paymentGateway.qris.merchantCity}
+                  onChange={(e) => setPaymentGateway(prev => ({
+                    ...prev,
+                    qris: { ...prev.qris, merchantCity: e.target.value }
+                  }))}
+                  placeholder="Jakarta"
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-rose-500"
+                />
+              </div>
+            </div>
+
+            {/* Additional QRIS Options */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-white block">Kode Unik 3 Digit</span>
+                  <span className="text-[11px] text-slate-400">Tambahkan 3 digit acak agar nominal unik.</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={paymentGateway.qris.useUniqueCode}
+                  onChange={(e) => setPaymentGateway(prev => ({
+                    ...prev,
+                    qris: { ...prev.qris, useUniqueCode: e.target.checked }
+                  }))}
+                  className="w-5 h-5 rounded cursor-pointer accent-rose-500 ml-3"
+                />
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-white block">Auto-Approve</span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Instan</span>
+                  </div>
+                  <span className="text-[11px] text-slate-400">Otomatis setujui saat pembeli klik bayar.</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={paymentGateway.qris.autoApprove !== false}
+                  onChange={(e) => setPaymentGateway(prev => ({
+                    ...prev,
+                    qris: { ...prev.qris, autoApprove: e.target.checked }
+                  }))}
+                  className="w-5 h-5 rounded cursor-pointer accent-emerald-500 ml-3"
+                />
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1.5">
+                <label className="text-xs font-bold text-white block">Kedaluwarsa (Menit)</label>
+                <input
+                  type="number"
+                  min={5}
+                  max={1440}
+                  value={paymentGateway.qris.expiryMinutes}
+                  onChange={(e) => setPaymentGateway(prev => ({
+                    ...prev,
+                    qris: { ...prev.qris, expiryMinutes: Number(e.target.value) || 30 }
+                  }))}
+                  className="w-full rounded-xl bg-slate-900 border border-slate-800 px-3.5 py-2 text-xs text-white focus:outline-none focus:border-rose-500"
+                />
+              </div>
+            </div>
+
+            {/* Instructions */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-300">Petunjuk Pembayaran untuk Pengguna</label>
+              <textarea
+                rows={3}
+                value={paymentGateway.qris.instructions}
+                onChange={(e) => setPaymentGateway(prev => ({
+                  ...prev,
+                  qris: { ...prev.qris, instructions: e.target.value }
+                }))}
+                className="w-full rounded-2xl bg-slate-950 border border-slate-800 px-4 py-3 text-xs text-slate-300 focus:outline-none focus:border-rose-500"
+              />
+            </div>
+          </div>
+
+          {/* Midtrans Configuration Card */}
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-5">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
+                  <CreditCard className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="text-lg font-black text-white">Konfigurasi Midtrans Gateway</h3>
+                  <p className="text-xs text-slate-400">
+                    Pengaturan lingkungan Snap Midtrans untuk Virtual Account, Kartu Kredit, dan E-Wallet resmi.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-400">Status Midtrans:</span>
+                <button
+                  type="button"
+                  onClick={() => setPaymentGateway(prev => ({
+                    ...prev,
+                    midtrans: { ...prev.midtrans, enabled: !prev.midtrans.enabled }
+                  }))}
+                  className={`px-3 py-1 rounded-full text-xs font-black transition-colors cursor-pointer ${
+                    paymentGateway.midtrans.enabled 
+                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' 
+                      : 'bg-slate-800 text-slate-400 border border-slate-700'
+                  }`}
+                >
+                  {paymentGateway.midtrans.enabled ? 'AKTIF' : 'NONAKTIF'}
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-white block">Mode Produksi Midtrans</span>
+                <span className="text-[11px] text-slate-400">
+                  Aktifkan jika akun Midtrans Anda sudah live production. Matikan untuk menggunakan mode Sandbox/Testing.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPaymentGateway(prev => ({
+                  ...prev,
+                  midtrans: { ...prev.midtrans, isProduction: !prev.midtrans.isProduction }
+                }))}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  paymentGateway.midtrans.isProduction
+                    ? 'bg-emerald-500 text-white shadow-md'
+                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                }`}
+              >
+                {paymentGateway.midtrans.isProduction ? 'LIVE PRODUCTION' : 'SANDBOX (TEST)'}
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 text-[11px] text-slate-400 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>
+                Kredensial rahasia Midtrans (Server Key & Merchant ID) disimpan aman pada environment server (`.env`) demi keamanan zero-leak.
+              </span>
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* TAB 9: RATE LIMITER & DEVELOPER MODE */}
+      {activeTab === 'rate_limit' && (
+        <div className="space-y-6">
+          
+          {/* Header Banner */}
+          <div className={`p-6 rounded-3xl border transition-all ${
+            !rateLimit.enabled
+              ? 'bg-amber-500/10 border-amber-500/30 ring-1 ring-amber-500/20'
+              : 'bg-slate-900 border-slate-800'
+          }`}>
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2.5 rounded-2xl ${
+                    !rateLimit.enabled ? 'bg-amber-500/20 text-amber-300' : 'bg-cyan-500/20 text-cyan-400'
+                  }`}>
+                    <Gauge className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-white flex items-center gap-2">
+                      Pengaturan Rate Limiter & Mode Pengembang
+                      {!rateLimit.enabled ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-black uppercase tracking-wider animate-pulse">
+                          Mode Dev (Bypass Aktif)
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">
+                          Mode Produksi (Aktif)
+                        </span>
+                      )}
+                    </h2>
+                    <p className="text-xs text-slate-400">
+                      Kendali pembatasan laju permintaan per perangkat (IP). Matikan saat mode develop agar pengujian transaksi, kupon, dan auth bebas dari batas request.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Master Switch & Flush Button */}
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRateLimit(prev => ({ ...prev, enabled: !prev.enabled }))}
+                  className={`px-5 py-3 rounded-2xl text-xs font-black transition-all flex items-center gap-2.5 cursor-pointer shadow-lg ${
+                    rateLimit.enabled
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/30 ring-2 ring-emerald-400/40'
+                      : 'bg-amber-500 hover:bg-amber-400 text-black shadow-amber-900/30 ring-2 ring-amber-300/60'
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  {rateLimit.enabled ? 'Rate Limiter: AKTIF (Proteksi Keamanan)' : 'Rate Limiter: DINONAKTIFKAN (Mode Dev)'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleResetRateLimits}
+                  disabled={resettingRateLimit}
+                  className="px-4 py-3 rounded-2xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                  title="Hapus seluruh cache blokir rate limit pada memory server"
+                >
+                  <RotateCcw className={`w-4 h-4 text-cyan-400 ${resettingRateLimit ? 'animate-spin' : ''}`} />
+                  {resettingRateLimit ? 'Mereset...' : 'Bersihkan Cache Limit Sekarang'}
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Presets */}
+            <div className="mt-6 pt-5 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <span className="text-slate-400 font-medium">Pilihan Cepat (Preset):</span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRateLimit({
+                      enabled: false,
+                      paymentsMax: 500,
+                      paymentsWindowMinutes: 5,
+                      authMax: 500,
+                      strictMax: 50,
+                      aiMax: 100,
+                      generalApiMax: 2000,
+                    });
+                    showToast('Preset Mode Pengembang diterapkan. Jangan lupa simpan perubahan!', 'success');
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  ⚡ Preset Mode Develop (Bypass & Limit Longgar)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRateLimit({
+                      enabled: true,
+                      paymentsMax: 100,
+                      paymentsWindowMinutes: 5,
+                      authMax: 100,
+                      strictMax: 15,
+                      aiMax: 30,
+                      generalApiMax: 500,
+                    });
+                    showToast('Preset Standar Produksi diterapkan. Jangan lupa simpan perubahan!', 'success');
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  🛡️ Preset Mode Produksi (Standar Keamanan)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Detailed Category Settings */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            {/* Card 1: Pembayaran & Kupon */}
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4 relative overflow-hidden">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-400">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">Transaksi & Kupon</h3>
+                  <p className="text-[11px] text-slate-400">Checkout paket, add-on kuota, validasi kupon</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">
+                    Batas Maksimal Permintaan
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={1}
+                      max={10000}
+                      value={rateLimit.paymentsMax}
+                      onChange={(e) => setRateLimit(prev => ({ ...prev, paymentsMax: Number(e.target.value) || 1 }))}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-bold focus:border-cyan-500 focus:outline-none"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-500 font-bold">req</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">Standar: 100 req. Di mode develop disarankan 300-1000.</p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">
+                    Durasi Jendela Waktu (Window)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={1}
+                      max={120}
+                      value={rateLimit.paymentsWindowMinutes}
+                      onChange={(e) => setRateLimit(prev => ({ ...prev, paymentsWindowMinutes: Number(e.target.value) || 1 }))}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-bold focus:border-cyan-500 focus:outline-none"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-500 font-bold">menit</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">Standar: 5 menit.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Autentikasi Login & Daftar */}
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-indigo-500/10 text-indigo-400">
+                  <LogIn className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">Autentikasi (Auth)</h3>
+                  <p className="text-[11px] text-slate-400">Percobaan login, pendaftaran & Google OAuth</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">
+                    Batas Maksimal Permintaan per 1 Menit
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={1}
+                      max={10000}
+                      value={rateLimit.authMax}
+                      onChange={(e) => setRateLimit(prev => ({ ...prev, authMax: Number(e.target.value) || 1 }))}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-bold focus:border-cyan-500 focus:outline-none"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-500 font-bold">req / mnt</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">Standar: 100 percobaan / menit.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: AI Question Generator */}
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-400">
+                  <Zap className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">AI Question Generator</h3>
+                  <p className="text-[11px] text-slate-400">Generasi soal AI via file PDF/DOCX/Text</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">
+                    Batas Maksimal Generasi per 5 Menit
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={1}
+                      max={500}
+                      value={rateLimit.aiMax}
+                      onChange={(e) => setRateLimit(prev => ({ ...prev, aiMax: Number(e.target.value) || 1 }))}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-bold focus:border-cyan-500 focus:outline-none"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-500 font-bold">generasi</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">Standar: 30 generasi / 5 menit.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: Operasi Kritis (Forgot Password) */}
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-rose-500/10 text-rose-400">
+                  <ShieldAlert className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">Operasi Sensitif (Strict)</h3>
+                  <p className="text-[11px] text-slate-400">Lupa password & reset password email</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">
+                    Batas Maksimal per 15 Menit
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={1}
+                      max={500}
+                      value={rateLimit.strictMax}
+                      onChange={(e) => setRateLimit(prev => ({ ...prev, strictMax: Number(e.target.value) || 1 }))}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-bold focus:border-cyan-500 focus:outline-none"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-500 font-bold">req / 15 mnt</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">Standar: 15 req / 15 menit.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 5: General API Limiter */}
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-cyan-500/10 text-cyan-400">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">API Umum (Global Limiter)</h3>
+                  <p className="text-[11px] text-slate-400">Seluruh endpoint publik dan pencegahan DDoS</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">
+                    Batas Maksimal Permintaan per 1 Menit
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={10}
+                      max={50000}
+                      value={rateLimit.generalApiMax}
+                      onChange={(e) => setRateLimit(prev => ({ ...prev, generalApiMax: Number(e.target.value) || 10 }))}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-bold focus:border-cyan-500 focus:outline-none"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-500 font-bold">req / mnt</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">Standar: 500 req / menit.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 6: Informasi Arsitektur */}
+            <div className="p-6 rounded-3xl bg-slate-950/60 border border-slate-800/80 flex flex-col justify-between">
+              <div className="space-y-2">
+                <span className="px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-300 text-[10px] font-black uppercase tracking-wider inline-block">
+                  Tips Mode Pengembangan
+                </span>
+                <h4 className="text-xs font-black text-white">Bypass Otomatis</h4>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Jika tombol switch di atas disetel ke <b>"Rate Limiter: DINONAKTIFKAN"</b>, server tidak akan membatasi IP Anda sama sekali. Sangat direkomendasikan saat Anda sedang melakukan pengujian alur checkout atau kupon berulang kali.
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-slate-800/60 text-[10px] text-slate-500 flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span>Header <code>X-RateLimit-Bypassed: true</code> akan otomatis disertakan pada response.</span>
+              </div>
+            </div>
+
+          </div>
+
         </div>
       )}
 

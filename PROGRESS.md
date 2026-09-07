@@ -5,8 +5,113 @@ Dokumen ini mencatat seluruh riwayat pekerjaan, fitur yang diimplementasikan, da
 ---
 
 ## 📌 Status Proyek Saat Ini
-- **Status**: Full-Stack Security Hardening Completed (Strict CORS, CSRF Protection, Rate Limiting, Mandatory Auth Verification, Secret Key Masking & Isolation), Production Midtrans Payment Gateway Integrated, Google OAuth / GIS Implemented, & Full-Stack Maintenance Mode Active.
-- **Terakhir Diperbarui**: 2026-09-06
+- **Status**: Dual Payment Gateway Active (Midtrans Native Core API & Direct QRIS via bits-qris), Custom-Branded Payment UI Implemented, Full-Stack Security Hardening Completed, Google OAuth / GIS Implemented, & Full-Stack Maintenance Mode Active.
+- **Terakhir Diperbarui**: 2026-09-07
+
+### Perbaikan Tombol "Masuk ke Dashboard Workspace" pada Halaman Sukses (`PaymentSuccessPage.tsx`)
+- [x] **Penyebab Utama Mengapa Sebelumnya Harus Reload Manual**:
+  - Di `client/src/App.tsx`, halaman `/payment/success` berada dalam blok `if (isFullWidthPage)` yang memiliki tabel rute `<Routes>` tersendiri tanpa rute `/dashboard`.
+  - Ketika tombol diklik menggunakan navigasi SPA `navigate('/dashboard')`, router menangkap rute tersebut sebagai `*` dan memicu fallback `<Navigate to="/" replace />`, yang menyebabkan router tertahan atau melakukan loop redirect internal di React Router. Akibatnya, tombol terlihat "tidak bisa diklik" kecuali pengguna merefresh halaman secara manual (sehingga browser langsung meminta `/dashboard` dari awal).
+  - Skrip eksternal Midtrans Snap yang dimuat di `index.html` juga memasang listener global di `window` yang dapat menangkap event interaksi dokumen.
+- [x] **Solusi Komprehensif & Permanen**:
+  - **Navigasi Langsung**: Mengubah handler tombol di `PaymentSuccessPage.tsx` agar langsung mengeksekusi `window.location.href = '/dashboard'`. Ini memastikan transisi ke workspace selalu sukses 100% tanpa bergantung pada siklus internal router SPA dan langsung memuat dashboard dengan state autentikasi segar.
+  - **Rute Sinkron di `App.tsx`**: Menambahkan `<Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />` ke dalam tabel rute full-width di `App.tsx` untuk mencegah rute `*` menangkap URL dashboard.
+  - **Pembersihan `index.html`**: Menghapus tag skrip global `snap.js` dari `client/index.html` agar tidak ada skrip pihak ketiga yang mengotori DOM atau menangkap event klik dokumen.
+  - **Tombol & Tautan Native**: Tombol sekarang berformat tautan native `<a href="/dashboard">` dengan `onClick={handleGoToWorkspace}`, prioritas lapisan `z-50 pointer-events-auto`, dan styling tombol utama yang responsif.
+  - **Pembaruan Konteks Pengguna**: Memanggil `refreshUser()` otomatis saat halaman dimuat agar paket baru langsung tertera di profil.
+
+- [x] **Dukungan Penuh Saluran Pembayaran Native di Backend (`server/src/routes/payments.ts`)**:
+  - Implementasi fungsi `chargeMidtransByMethod`:
+    - **BCA Virtual Account (`BCA_VA`)**: Menghasilkan nomor VA BCA (`va_number`) resmi secara real-time.
+    - **BNI Virtual Account (`BNI_VA`)**: Menghasilkan nomor VA BNI (`va_number`) resmi secara real-time.
+    - **BRI Virtual Account (`BRI_VA`)**: Menghasilkan nomor BRIVA (`va_number`) resmi secara real-time.
+    - **Permata Virtual Account (`PERMATA_VA`)**: Menghasilkan nomor VA Permata (`permata_va_number`).
+    - **Mandiri Bill Payment (`MANDIRI_VA`)**: Menghasilkan Kode Perusahaan / Biller Code (`70012`) dan Nomor Pembayaran / Bill Key (`bill_key`).
+    - **QRIS Dinamis (`QRIS`)**: Menghasilkan URL gambar QR resmi dari Midtrans dan string QRIS EMVCo.
+  - Menyimpan rincian pembayaran (`paymentDetails`) langsung pada database dan mengembalikannya melalui `GET /api/payments/status/:orderId`.
+  - Menambahkan endpoint `POST /api/payments/simulate-sandbox/:orderId` untuk mempermudah pengujian instan status `PAID` di lingkungan Sandbox developer tanpa transfer riil.
+- [x] **Pilihan Saluran Pembayaran Terstruktur pada Halaman Checkout (`client/src/pages/CheckoutPage.tsx`)**:
+  - Mengganti tombol "Midtrans Gateway" generik dengan kartu pilihan saluran pembayaran yang elegan dan rapi:
+    - QRIS Dinamis (Instan & Rekomendasi - Semua Bank & E-Wallet).
+    - Virtual Account Bank: BCA Virtual Account, Mandiri Bill Payment, BNI Virtual Account, BRI Virtual Account (BRIVA), Permata Virtual Account.
+  - Menambahkan baris "Metode Bayar" pada kartu Ringkasan Pesanan di sisi kanan.
+- [x] **Halaman Pembayaran Examigo 100% Branded, Bersih & Otomatis (`client/src/pages/PaymentPage.tsx`)**:
+  - **Tampilan Virtual Account**: Header resmi bank dengan badge warna khas (BCA biru, Mandiri navy-emas, BNI teal-oranye, BRI biru, Permata hijau), nomor VA berformat spasi jelas, tombol 1-klik "Salin No. VA" dengan animasi status tersalin, nama merchant "Examigo Edu Platform", dan tab panduan langkah demi langkah (m-Banking, Internet Banking, ATM).
+  - **Tampilan Mandiri Bill Payment**: Dua kartu terpisah dengan tombol salin untuk Kode Perusahaan (`70012`) dan Nomor Pembayaran (Bill Key) beserta panduan pembayaran via Livin' by Mandiri dan ATM Mandiri.
+  - **Tampilan QRIS Dinamis**: Kartu resmi standar nasional QRIS (merah-putih GPN), gambar QR tajam berlatar kontras, tombol "Unduh Gambar QR" untuk kemudahan pembayaran dari galeri ponsel, serta daftar lengkap aplikasi pendukung (BCA, Mandiri, BRI, BNI, GoPay, OVO, Dana, ShopeePay).
+  - **Penghapusan Seluruh Elemen Manual & Dev Tool**: Menghapus total tombol "Saya Sudah Scan & Bayar", tombol "Cek Status Sekarang", tulisan "Sistem mengecek mutasi setiap 3 detik", serta kotak "Mode Pengujian (Sandbox)" sehingga UI bersih, profesional, dan 100% otomatis.
+  - **Auto-Detection & Redirection Senyap**: Sistem auto-polling memeriksa status transaksi setiap 3 detik di latar belakang tanpa mengganggu tampilan pengguna dan langsung mengalihkan ke halaman sukses (**Step 03. Selesai**) saat pembayaran terverifikasi.
+  - **Live Countdown Timer**: Penghitung mundur batas waktu transfer 24 jam (`HH:MM:SS`).
+- [x] **Pembaruan & Perapian UI Halaman Pengaturan Langganan (`client/src/pages/SubscriptionSettingsPage.tsx`)**:
+  - **Perbaikan Header & Action Buttons**: Mengatasi tata letak tombol aksi di header yang sebelumnya patah menjadi dua baris tidak rapi (tombol *Perpanjang Langganan* turun ke bawah *Beli Kuota Satuan*). Kini menggunakan layout terpadu (`lg:flex-row`, `sm:flex-nowrap`, `h-10`) dengan badge paket dinamis berwarna sesuai status paket (`PRO` amber, `PERSONAL` emerald, `FREE` slate).
+  - **Redesain Banner Notifikasi Pembatalan**: Mengubah alert kotak kuning lama menjadi banner notifikasi bernuansa emerald modern lengkap dengan ikon status, pill penjelas transisi paket, salinan penjaminan keamanan bank soal 100%, serta tombol dismiss `(X)` untuk menutup notifikasi kapan saja.
+  - **Peningkatan Visual Modal Konfirmasi Pembatalan**: Mempercantik dialog modal konfirmasi pembatalan dengan backdrop blur halus, ikon peringatan terstruktur, bullet point transparansi dampak pembatalan (data bank soal aman, kuota disesuaikan ke standar free), serta tombol aksi "Tetap Berlangganan" vs "Ya, Batalkan Sekarang" dengan animasi loading spinner.
+  - **Pemisahan Aksi Berbahaya**: Memisahkan tombol "Batalkan Langganan" dari tombol aksi utama penambahan kuota dan upgrade paket dengan penempatan rapi di sisi kanan kartu spesifikasi paket menggunakan warna lembut *rose*.
+- [x] **Pembatalan Langganan Riil & Transisi Instan ke Paket Free (`server/src/routes/payments.ts`, `client/src/pages/SubscriptionSettingsPage.tsx`)**:
+  - Mengimplementasikan endpoint `POST /api/payments/cancel-subscription` pada backend untuk membatalkan paket aktif secara langsung, mengubah paket menjadi `FREE`, mengembalikan `planValidUntil` ke `null`, menyetel kuota AI ke 15, dan mereset add-on ekstra tanpa menghapus satu pun data soal, mata pelajaran, materi, atau riwayat ujian pengguna.
+  - Memperbaiki alur tombol **"Ya, Batalkan Langganan"** pada dialog konfirmasi di `SubscriptionSettingsPage.tsx`: sebelumnya hanya mengubah state dummy lokal tanpa menghubungi server, kini mengeksekusi panggilan API riil ke server, menampilkan loading spinner (`cancelling`), memperbarui konteks autentikasi pengguna secara instan (`refreshUser`), dan melakukan sinkronisasi ulang data langganan (`fetchSubscription`).
+  - Memperbarui dialog konfirmasi dan notifikasi sukses agar memberikan transparansi penuh bahwa status langsung berubah saat itu juga dan seluruh data bank soal tetap aman.
+  - Mengimplementasikan alur **Auto-Approve** pembayaran QRIS: Ketika pembeli melakukan scan dan menekan tombol konfirmasi atau sistem mengecek kode unik transaksi, sistem langsung memverifikasi transaksi, menandai status sebagai `PAID`, serta mengeksekusi `fulfillTransaction(transaction)` untuk langsung mengaktifkan masa aktif paket (`planValidUntil`) dan kuota AI (`aiQuotaLimit`).
+  - Menghilangkan keharusan admin menyetujui transaksi secara manual satu per satu di dashboard CMS.
+  - Menambahkan konfigurasi `paymentGateway.qris.autoApprove` (default `true`) di CMS sehingga admin dapat mengaktifkan atau menonaktifkan mode auto-approve sewaktu-waktu.
+  - Menambahkan endpoint `POST /api/admin/transactions/approve-all` untuk menyetujui sekaligus seluruh antrean transaksi PENDING dalam 1 kali klik.
+- [x] **Alur Pengguna Otomatis & Transisi Instan ke Step 03 (`client/src/pages/PaymentPage.tsx`, `client/src/pages/admin/AdminCmsPage.tsx`, `client/src/pages/admin/AdminTransactionsPage.tsx`)**:
+  - Menambahkan auto-polling status pembayaran setiap 3 detik di `PaymentPage.tsx` sehingga begitu status berubah menjadi `PAID`, sistem otomatis langsung mengalihkan ke step berikutnya (`/payment/success` - Step 03. Selesai).
+  - Mengubah tombol aksi di `PaymentPage.tsx` menjadi **"Saya Sudah Scan & Bayar (Cek Kode & Selesai)"** yang saat diklik langsung memvalidasi kode transaksi dan mengarahkan ke halaman sukses dalam 800ms.
+  - Menambahkan tombol **"Setujui Semua Pending"** di `AdminTransactionsPage.tsx` lengkap dengan counter transaksi pending dan konfirmasi batch.
+  - Menambahkan toggle **"Auto-Approve (Instan)"** pada Tab 8 CMS Pengaturan QRIS di `AdminCmsPage.tsx`.
+  - Memperbarui teks verifikasi pada `PaymentSuccessPage.tsx` agar dinamis dan ramah untuk QRIS Dinamis.
+
+### Perbaikan Sinkronisasi Harga Paket CMS ke Alur Checkout & Pembayaran QRIS
+- [x] **Koreksi Perhitungan Harga Paket Berbasis CMS (`server/src/routes/payments.ts`, `client/src/pages/CheckoutPage.tsx`, `client/src/pages/PaymentPage.tsx`)**:
+  - Memperbaiki bug di mana endpoint `POST /api/payments/checkout` sebelumnya menggunakan harga paket hardcoded (`PERSONAL: 49000`, `PRO_AI: 149000`) alih-alih membaca harga paket dinamis yang diatur di Admin CMS (`cmsConf.pricing.personal.monthlyPrice` dsb).
+  - Menyinkronkan harga paket antara Ringkasan Pesanan (Step 1) dan Total Nominal Pembayaran QRIS (Step 2) sehingga perubahan harga paket (misal Rp 300) dan biaya layanan (Rp 2.000) menghasilkan total dasar yang tepat (Rp 2.300) ditambah 3 digit kode unik (opsional).
+  - Memperbaiki logika fallback harga di frontend `CheckoutPage.tsx` dari operator `||` menjadi `??` agar nilai 0 atau harga khusus tidak tereset ke default 49.000.
+  - Memperbarui `PaymentPage.tsx` agar nilai nominal fallback tidak mengunci ke 49.000 jika data checkout berisi harga promo atau harga kustom dari CMS.
+  - Menghubungkan batas kuota AI pertanyaan pada `fulfillTransaction` agar mengikuti `cmsConf.pricing` secara dinamis.
+
+### Manajemen Rate Limiter Dinamis & Mode Pengembang (Developer Mode) di Admin CMS
+- [x] **Rate Limiter Dinamis Berbasis CMS (`server/src/middleware/rateLimiter.ts`, `server/src/routes/cms.ts`)**:
+  - Mengubah rate limiter dari nilai hardcoded statis menjadi dinamis yang membaca konfigurasi `rateLimit` di CMS (`getCmsConfig()`) secara real-time.
+  - Implementasi **Master Switch Mode Pengembang**: Jika `rateLimit.enabled === false`, seluruh middleware rate limiting (pembayaran, kupon, auth, AI, API umum) di-bypass secara otomatis sehingga developer bebas menguji alur checkout berulang kali tanpa terkena HTTP 429 ("Terlalu banyak percobaan transaksi/kupon").
+  - Menambahkan endpoint `POST /api/admin/cms/rate-limit-reset` untuk membersihkan / mengosongkan seluruh antrean cache IP yang diblokir pada memory server secara instan.
+  - Pemisahan rate limiter untuk pemeriksaan status pembayaran (`paymentStatusLimiter`) pada `GET /api/payments/status/:orderId` dengan batas lebih tinggi (200 req/menit) agar polling status pembayaran tidak memicu false block.
+  - Penambahan pengaturan kuota per kategori: Transaksi & Kupon (`paymentsMax`, `paymentsWindowMinutes`), Autentikasi (`authMax`), AI Generator (`aiMax`), Operasi Sensitif (`strictMax`), dan API Umum (`generalApiMax`).
+- [x] **Panel Tab 9: "9. Rate Limiter & Dev Mode" pada Admin CMS (`client/src/pages/admin/AdminCmsPage.tsx`)**:
+  - Tombol master switch interaktif "Rate Limiter: AKTIF / DINONAKTIFKAN (Mode Dev)".
+  - Tombol 1-klik "⚡ Bersihkan / Reset Seluruh Antrean Rate Limit Sekarang".
+  - Tombol preset cepat: "⚡ Preset Mode Develop (Bypass & Limit Longgar)" dan "🛡️ Preset Mode Produksi (Standar Keamanan)".
+  - Form input per kategori dengan validasi angka dan dirty-checking real-time.
+
+### Integrasi Direct Dynamic QRIS (bits-qris) & Sistem Dual Payment Gateway
+- [x] **Integrasi Library `bits-qris` & Engine Generator QRIS Dinamis (`server/src/lib/qris.ts`)**:
+  - Instalasi package `bits-qris@1.5.0` pada backend.
+  - Implementasi fungsi validasi string QRIS statis EMVCo / GPN (`validateStaticQrisString`) dengan ekstraksi otomatis informasi merchant (NMID, Nama Merchant, Kota Merchant, validasi CRC16).
+  - Implementasi konversi dinamis (`convertQris`) dengan penambahan Tag 54 (nominal transaksi + kode unik 3 digit acak untuk verifikasi otomatis), Tag 58 (ID), dan perhitungan ulang checksum CRC16.
+  - Generasi langsung QR Code Data URL (`makeQrDataUrl`) berbasis SVG/Canvas base64 untuk langsung dirender di frontend tanpa ketergantungan API pihak ketiga.
+  - Konfigurasi default static QRIS terhubung ke merchant DANA resmi: `RizkilluaTech` (Kab. Cirebon, NMID: `ID1026494840170`).
+- [x] **Manajemen Gateway Pembayaran di Admin CMS (`server/src/routes/cms.ts`, `client/src/pages/admin/AdminCmsPage.tsx`)**:
+  - Penambahan konfigurasi `paymentGateway` pada CMS config:
+    - Opsi Gateway Aktif: `USER_CHOICE` (Pengguna bebas memilih antara QRIS atau Midtrans), `BITS_QRIS` (Wajib QRIS Langsung), atau `MIDTRANS` (Wajib Midtrans Snap).
+    - Konfigurasi QRIS: toggle status aktif, input string QRIS statis, nama merchant, kota merchant, toggle kode unik nominal (1-999), masa kedaluwarsa (menit), dan instruksi pembayaran.
+  - Penambahan endpoint validator live: `POST /api/admin/cms/qris-validate` untuk menguji keabsahan format EMVCo dan melihat preview QR code live sebelum disimpan.
+  - Tab 8 "8. Gateway Pembayaran" pada panel Admin CMS dengan UI modern, status indikator, tester live, dan alert info.
+- [x] **Alur Checkout & Payment Page Interaktif (`server/src/routes/payments.ts`, `client/src/pages/CheckoutPage.tsx`, `client/src/pages/PaymentPage.tsx`)**:
+  - Penambahan Step 3 pilihan metode pembayaran pada `CheckoutPage` jika mode `USER_CHOICE` aktif.
+  - Rute `/checkout` dan `/checkout-addon` otomatis membedakan flow pembayaran berdasarkan gateway:
+    - Jika `BITS_QRIS`: Membuat transaksi `PENDING` dengan nominal unik, menghasilkan `qrisDataUrl` dan `qrisString`, serta mengarahkan ke halaman instruksi QRIS internal (`/payment/:orderId`).
+    - Jika `MIDTRANS`: Membuat Snap Token Midtrans dan membuka popup Snap Payment.
+  - Pembuatan tampilan interaktif `PaymentPage`:
+    - Kartu QRIS dinamis resmi dengan logo GPN & QRIS.
+    - Rincian total transfer dengan highlight kode unik dan tombol "Salin Nominal".
+    - Tombol "Download QR Code" untuk kemudahan pembayaran via mobile banking/e-wallet.
+    - Countdown timer masa berlaku QRIS (otomatis expired jika melewati batas waktu).
+    - Tombol "Saya Sudah Bayar" yang memperbarui status transaksi menjadi konfirmasi customer.
+- [x] **Panel Transaksi & Persetujuan Admin (`server/src/routes/admin.ts`, `client/src/pages/admin/AdminTransactionsPage.tsx`)**:
+  - Penambahan badge gateway pembayaran (`QRIS (bits-qris)` vs `Midtrans`).
+  - Penambahan endpoint `POST /api/admin/transactions/:orderId/approve` untuk verifikasi manual pembayaran QRIS yang langsung mengaktifkan langganan / kuota user secara otomatis (`fulfillTransaction`).
+  - Penambahan endpoint `POST /api/admin/transactions/:orderId/reject` untuk menolak pembayaran yang tidak valid atau kedaluwarsa.
+  - Aksi cepat 1-klik "Setujui" & "Tolak" langsung pada baris transaksi di halaman Admin.
 
 ### Peningkatan Keamanan Sistem Menyeluruh (Full-Stack Security & Hardening)
 - [x] **Keamanan Autentikasi & Otorisasi Ketat (Authentication & Authorization Hardening)**:

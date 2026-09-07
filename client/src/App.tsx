@@ -256,6 +256,7 @@ export default function App() {
           <Route path="/@/feedback" element={<AdminRoute><AdminLayout><AdminFeedbackPage /></AdminLayout></AdminRoute>} />
           <Route path="/@/cms" element={<AdminRoute><AdminLayout><AdminCmsPage /></AdminLayout></AdminRoute>} />
 
+          <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
           <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

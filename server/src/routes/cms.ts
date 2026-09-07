@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
 import { requireAdmin } from '../middleware/auth';
+import { validateStaticQrisString, generateDynamicQris } from '../lib/qris';
+import { resetAllRateLimits } from '../middleware/rateLimiter';
 
 const router = Router();
 const CMS_CONFIG_FILE = path.join(__dirname, '../../cms_config.json');
@@ -169,6 +171,32 @@ const defaultCmsConfig = {
       examCreation: false,
       studentExams: false,
     }
+  },
+  paymentGateway: {
+    activeGateway: 'USER_CHOICE', // 'MIDTRANS' | 'BITS_QRIS' | 'USER_CHOICE'
+    midtrans: {
+      enabled: true,
+      isProduction: false,
+    },
+    qris: {
+      enabled: true,
+      staticQris: '00020101021126570011ID.DANA.WWW011893600915300729047402090072904740303UMI51440014ID.CO.QRIS.WWW0215ID10264948401700303UMI5204573253033605802ID5913RizkilluaTech6012Kab. Cirebon6105451526304874E',
+      merchantName: 'RizkilluaTech',
+      merchantCity: 'Kab. Cirebon',
+      useUniqueCode: true,
+      autoApprove: true,
+      expiryMinutes: 30,
+      instructions: '1. Buka aplikasi m-Banking atau E-Wallet (BCA, Mandiri, GoPay, OVO, Dana, ShopeePay, dll).\n2. Scan QR Code dinamis di atas.\n3. Pastikan nominal transfer sesuai hingga 3 digit terakhir.\n4. Selesaikan pembayaran dan klik tombol "Saya Sudah Bayar".',
+    }
+  },
+  rateLimit: {
+    enabled: true, // true = aktif (produksi), false = dinonaktifkan (mode pengembang / testing)
+    paymentsMax: 100,
+    paymentsWindowMinutes: 5,
+    authMax: 100,
+    strictMax: 15,
+    aiMax: 30,
+    generalApiMax: 500,
   }
 };
 
@@ -243,7 +271,25 @@ router.get('/public/landing-config', (req: Request, res: Response) => {
   const config = getCmsConfig();
   // Strip sensitive credentials before exposing to public consumers
   const { geminiApiKey, ...safeConfig } = config;
-  res.json({ success: true, data: safeConfig });
+
+  const safePaymentGateway = {
+    activeGateway: config.paymentGateway?.activeGateway || 'USER_CHOICE',
+    midtrans: {
+      enabled: config.paymentGateway?.midtrans?.enabled ?? true,
+      isProduction: config.paymentGateway?.midtrans?.isProduction ?? false,
+    },
+    qris: {
+      enabled: config.paymentGateway?.qris?.enabled ?? true,
+      merchantName: config.paymentGateway?.qris?.merchantName || 'Examigo Platform',
+      merchantCity: config.paymentGateway?.qris?.merchantCity || 'Jakarta',
+      useUniqueCode: config.paymentGateway?.qris?.useUniqueCode ?? true,
+      expiryMinutes: config.paymentGateway?.qris?.expiryMinutes || 30,
+      instructions: config.paymentGateway?.qris?.instructions || '',
+      hasStaticQris: Boolean(config.paymentGateway?.qris?.staticQris || process.env.QRIS_STATIC_STRING),
+    }
+  };
+
+  res.json({ success: true, data: { ...safeConfig, paymentGateway: safePaymentGateway } });
 });
 
 // GET /api/admin/cms (Admin only)
@@ -346,6 +392,43 @@ router.put('/admin/cms', requireAdmin, (req: Request, res: Response) => {
       },
       faqs: newConfig.faqs || currentConfig.faqs,
       geminiApiKey: resolvedGeminiKey,
+      paymentGateway: {
+        activeGateway: ['MIDTRANS', 'BITS_QRIS', 'USER_CHOICE'].includes(newConfig.paymentGateway?.activeGateway)
+          ? newConfig.paymentGateway.activeGateway
+          : (currentConfig.paymentGateway?.activeGateway || 'USER_CHOICE'),
+        midtrans: {
+          enabled: newConfig.paymentGateway?.midtrans?.enabled !== undefined
+            ? Boolean(newConfig.paymentGateway.midtrans.enabled)
+            : (currentConfig.paymentGateway?.midtrans?.enabled ?? true),
+          isProduction: newConfig.paymentGateway?.midtrans?.isProduction !== undefined
+            ? Boolean(newConfig.paymentGateway.midtrans.isProduction)
+            : (currentConfig.paymentGateway?.midtrans?.isProduction ?? false),
+        },
+        qris: {
+          enabled: newConfig.paymentGateway?.qris?.enabled !== undefined
+            ? Boolean(newConfig.paymentGateway.qris.enabled)
+            : (currentConfig.paymentGateway?.qris?.enabled ?? true),
+          staticQris: newConfig.paymentGateway?.qris?.staticQris !== undefined
+            ? String(newConfig.paymentGateway.qris.staticQris).trim()
+            : (currentConfig.paymentGateway?.qris?.staticQris || ''),
+          merchantName: newConfig.paymentGateway?.qris?.merchantName !== undefined
+            ? String(newConfig.paymentGateway.qris.merchantName).trim()
+            : (currentConfig.paymentGateway?.qris?.merchantName || 'Examigo Edu Platform'),
+          merchantCity: newConfig.paymentGateway?.qris?.merchantCity !== undefined
+            ? String(newConfig.paymentGateway.qris.merchantCity).trim()
+            : (currentConfig.paymentGateway?.qris?.merchantCity || 'Jakarta'),
+          useUniqueCode: newConfig.paymentGateway?.qris?.useUniqueCode !== undefined
+            ? Boolean(newConfig.paymentGateway.qris.useUniqueCode)
+            : (currentConfig.paymentGateway?.qris?.useUniqueCode ?? true),
+          autoApprove: newConfig.paymentGateway?.qris?.autoApprove !== undefined
+            ? Boolean(newConfig.paymentGateway.qris.autoApprove)
+            : (currentConfig.paymentGateway?.qris?.autoApprove ?? true),
+          expiryMinutes: Number(newConfig.paymentGateway?.qris?.expiryMinutes) || 30,
+          instructions: newConfig.paymentGateway?.qris?.instructions !== undefined
+            ? String(newConfig.paymentGateway.qris.instructions).trim()
+            : (currentConfig.paymentGateway?.qris?.instructions || ''),
+        }
+      },
       maintenance: {
         ...(currentConfig.maintenance || {}),
         ...(newConfig.maintenance || {}),
@@ -366,10 +449,24 @@ router.put('/admin/cms', requireAdmin, (req: Request, res: Response) => {
           examCreation: Boolean(newConfig.maintenance?.features?.examCreation ?? currentConfig.maintenance?.features?.examCreation ?? false),
           studentExams: Boolean(newConfig.maintenance?.features?.studentExams ?? currentConfig.maintenance?.features?.studentExams ?? false),
         }
+      },
+      rateLimit: {
+        enabled: newConfig.rateLimit?.enabled !== undefined 
+          ? Boolean(newConfig.rateLimit.enabled) 
+          : (currentConfig.rateLimit?.enabled ?? true),
+        paymentsMax: Math.max(1, Number(newConfig.rateLimit?.paymentsMax) || 100),
+        paymentsWindowMinutes: Math.max(1, Number(newConfig.rateLimit?.paymentsWindowMinutes) || 5),
+        authMax: Math.max(1, Number(newConfig.rateLimit?.authMax) || 100),
+        strictMax: Math.max(1, Number(newConfig.rateLimit?.strictMax) || 15),
+        aiMax: Math.max(1, Number(newConfig.rateLimit?.aiMax) || 30),
+        generalApiMax: Math.max(1, Number(newConfig.rateLimit?.generalApiMax) || 500),
       }
     };
 
     saveCmsConfig(updated);
+
+    // Otomatis bersihkan cache blokir rate limiter saat konfigurasi diperbarui
+    resetAllRateLimits();
 
     // Return masked data to response
     const maskedUpdated = {
@@ -378,10 +475,19 @@ router.put('/admin/cms', requireAdmin, (req: Request, res: Response) => {
       hasGeminiApiKey: Boolean(updated.geminiApiKey),
     };
 
-    res.json({ success: true, message: 'Konfigurasi Landing Page CMS, API Key & Mode Pemeliharaan berhasil disimpan!', data: maskedUpdated });
+    res.json({ success: true, message: 'Konfigurasi Landing Page CMS, Gateway & Rate Limiter berhasil disimpan!', data: maskedUpdated });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message || 'Gagal menyimpan konfigurasi CMS.' });
   }
+});
+
+// POST /api/admin/cms/rate-limit-reset (Admin only - Flush in-memory rate limiter)
+router.post('/admin/cms/rate-limit-reset', requireAdmin, (_req: Request, res: Response) => {
+  resetAllRateLimits();
+  res.json({ 
+    success: true, 
+    message: 'Seluruh antrean pembatasan laju permintaan (rate limit) berhasil dibersihkan. Anda dapat langsung melanjutkan pengujian.' 
+  });
 });
 
 // POST /api/admin/cms/maintenance (Quick toggle / update Maintenance Mode)
@@ -507,6 +613,55 @@ router.post('/admin/cms/test-ai-key', requireAdmin, async (req: Request, res: Re
     return res.status(500).json({
       success: false,
       message: `Terjadi kesalahan saat memeriksa API Key: ${err.message}`,
+    });
+  }
+});
+
+// POST /api/admin/cms/qris-validate (Validate static QRIS string and return merchant info & preview QR)
+router.post('/admin/cms/qris-validate', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { staticQris } = req.body;
+    const cleanQris = (staticQris || '').trim();
+
+    if (!cleanQris) {
+      return res.status(400).json({
+        success: false,
+        valid: false,
+        message: 'String QRIS tidak boleh kosong.',
+      });
+    }
+
+    const valResult = validateStaticQrisString(cleanQris);
+    if (!valResult.valid) {
+      return res.status(400).json({
+        success: false,
+        valid: false,
+        message: `Format QRIS tidak valid: ${valResult.errors.join(', ')}`,
+        errors: valResult.errors,
+      });
+    }
+
+    // Generate sample preview QR (Rp 10.000)
+    let previewQrDataUrl = '';
+    try {
+      const preview = await generateDynamicQris(cleanQris, 10000);
+      previewQrDataUrl = preview.qrDataUrl;
+    } catch (e: any) {
+      console.warn('Failed to generate preview QR:', e?.message);
+    }
+
+    res.json({
+      success: true,
+      valid: true,
+      message: 'String QRIS EMVCo valid!',
+      merchantInfo: valResult.merchantInfo,
+      previewQrDataUrl,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      valid: false,
+      message: error.message || 'Gagal memvalidasi string QRIS',
     });
   }
 });

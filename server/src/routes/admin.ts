@@ -3,6 +3,7 @@ import { requireAdmin } from '../middleware/auth';
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
+import { fulfillTransaction } from './payments';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -411,6 +412,93 @@ router.get('/transactions', requireAdmin, async (req, res) => {
     res.json({ success: true, data: transactions });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Approve Transaction Manually (Super Admin)
+router.post('/transactions/:orderId/approve', requireAdmin, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const transaction = await prisma.transaction.findUnique({
+      where: { orderId },
+      include: { user: true },
+    });
+
+    if (!transaction) {
+      return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan' });
+    }
+
+    if (transaction.status === 'PAID') {
+      return res.json({ success: true, message: 'Transaksi ini sudah berstatus PAID sebelumnya.' });
+    }
+
+    // Fulfill benefits and mark as PAID
+    await fulfillTransaction(transaction);
+
+    res.json({
+      success: true,
+      message: `Transaksi ${orderId} berhasil disetujui! Benefit pengguna telah diaktifkan.`,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message || 'Gagal menyetujui transaksi' });
+  }
+});
+
+// Approve All Pending Transactions (Super Admin)
+router.post('/transactions/approve-all', requireAdmin, async (req, res) => {
+  try {
+    const pendingTxs = await prisma.transaction.findMany({
+      where: { status: 'PENDING' },
+      include: { user: true },
+    });
+
+    if (pendingTxs.length === 0) {
+      return res.json({ success: true, message: 'Tidak ada transaksi berstatus PENDING untuk disetujui.', count: 0 });
+    }
+
+    let approvedCount = 0;
+    for (const tx of pendingTxs) {
+      try {
+        await fulfillTransaction(tx);
+        approvedCount++;
+      } catch (err: any) {
+        console.error(`Gagal fulfill transaksi ${tx.orderId}:`, err);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Berhasil menyetujui ${approvedCount} dari ${pendingTxs.length} transaksi pending! Benefit pengguna telah diaktifkan otomatis.`,
+      count: approvedCount,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message || 'Gagal menyetujui semua transaksi' });
+  }
+});
+
+// Reject Transaction (Super Admin)
+router.post('/transactions/:orderId/reject', requireAdmin, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const transaction = await prisma.transaction.findUnique({
+      where: { orderId },
+    });
+
+    if (!transaction) {
+      return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan' });
+    }
+
+    await prisma.transaction.update({
+      where: { orderId },
+      data: { status: 'FAILED' },
+    });
+
+    res.json({
+      success: true,
+      message: `Transaksi ${orderId} telah ditandai sebagai GAGAL / DITOLAK.`,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message || 'Gagal menolak transaksi' });
   }
 });
 

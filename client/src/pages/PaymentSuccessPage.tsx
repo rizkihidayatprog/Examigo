@@ -1,14 +1,74 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, ArrowRight, Sparkles, ShieldCheck, User } from 'lucide-react';
 import ExamigoLogo from '../components/common/ExamigoLogo';
+import { useAuth } from '../lib/auth';
 
 export default function PaymentSuccessPage() {
+  const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { user, isAuthenticated, refreshUser } = useAuth();
+
   const state = location.state || {};
-  const plan = state.plan || 'PERSONAL';
-  const amount = state.amount || 49000;
-  const orderId = state.orderId || 'EXM-PAY-SUCCESS';
+  const orderId = state.orderId || searchParams.get('order_id') || 'EXM-PAY-SUCCESS';
+  const plan = state.plan || user?.plan || 'PRO_AI';
+  const amount = state.amount || (plan === 'PRO_AI' ? 149000 : 49000);
+
+  // Helper to remove any lingering third-party Snap iframes, backdrops, or overlays
+  const cleanupOverlays = () => {
+    try {
+      const straySelectors = [
+        '#snap-midtrans',
+        '#snap-container',
+        '[id*="snap-"]',
+        'iframe[src*="midtrans"]',
+        'iframe[name*="popup_"]',
+        '.snap-container',
+        '.snap-overlay',
+        'div[style*="z-index: 999"]',
+        'div[style*="z-index: 9999"]',
+        'div[style*="z-index: 100000"]'
+      ];
+      straySelectors.forEach((sel) => {
+        document.querySelectorAll(sel).forEach((el) => {
+          if (!document.getElementById('root')?.contains(el)) {
+            el.remove();
+          }
+        });
+      });
+      document.body.style.overflow = '';
+      if ((window as any).snap?.hide) {
+        (window as any).snap.hide();
+      }
+    } catch (e) {
+      console.warn('Overlay cleanup warning:', e);
+    }
+  };
+
+  // Clean overlays & refresh user auth immediately on mount
+  useEffect(() => {
+    cleanupOverlays();
+    const t = setTimeout(cleanupOverlays, 300);
+
+    // Refresh user context to ensure PRO_AI / latest plan is reflected
+    refreshUser().catch((err) => console.error('Failed to refresh user:', err));
+
+    return () => clearTimeout(t);
+  }, [refreshUser]);
+
+  const handleGoToWorkspace = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    cleanupOverlays();
+
+    // Use window.location.href directly to /dashboard
+    // This cleanly reloads auth and bypasses any router mismatch
+    window.location.href = '/dashboard';
+  };
 
   // Calculate valid until 1 month from now
   const nextMonth = new Date();
@@ -16,12 +76,14 @@ export default function PaymentSuccessPage() {
   const formattedDate = nextMonth.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans antialiased py-10 px-4 sm:px-6 flex flex-col items-center justify-center">
-      <div className="max-w-md w-full space-y-6 text-center">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans antialiased py-10 px-4 sm:px-6 flex flex-col items-center justify-center relative z-10">
+      <div className="max-w-md w-full space-y-6 text-center relative z-20">
         
         {/* Logo */}
         <div className="flex justify-center">
-          <ExamigoLogo size="lg" />
+          <a href="/dashboard" onClick={handleGoToWorkspace} className="inline-block transition-transform active:scale-95 cursor-pointer">
+            <ExamigoLogo size="lg" />
+          </a>
         </div>
 
         {/* 3-Step Wizard Completed */}
@@ -48,7 +110,7 @@ export default function PaymentSuccessPage() {
         </div>
 
         {/* Success Card */}
-        <div className="p-8 md:p-10 rounded-3xl bg-white border border-slate-200 shadow-xl space-y-6 relative overflow-hidden animate-fade-in-fast">
+        <div className="p-8 md:p-10 rounded-3xl bg-white border border-slate-200 shadow-xl space-y-6 relative z-30 overflow-hidden animate-fade-in-fast pointer-events-auto">
           
           <div className="w-16 h-16 rounded-full bg-emerald-50 text-[var(--theme-primary, #059669)] flex items-center justify-center mx-auto shadow-xs border border-[var(--theme-border, #A7F3D0)]">
             <CheckCircle2 className="w-10 h-10" />
@@ -56,7 +118,9 @@ export default function PaymentSuccessPage() {
 
           <div className="space-y-1.5">
             <h2 className="text-2xl font-black text-slate-900">Pembayaran Berhasil!</h2>
-            <p className="text-xs text-slate-500 font-medium">Transaksi telah diverifikasi resmi oleh Midtrans Payment Gateway.</p>
+            <p className="text-xs text-slate-500 font-medium">
+              {orderId?.includes('QRIS') ? 'Transaksi dan kode unik telah terverifikasi otomatis via QRIS.' : 'Transaksi telah diverifikasi resmi oleh Payment Gateway.'}
+            </p>
           </div>
 
           {/* Details */}
@@ -79,15 +143,23 @@ export default function PaymentSuccessPage() {
             </div>
           </div>
 
-          {/* Direct CTA */}
-          <Link
-            to="/"
-            style={{ backgroundColor: 'var(--theme-primary, #059669)' }}
-            className="w-full py-4 rounded-2xl text-white font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 hover:opacity-90"
-          >
-            <span>Masuk ke Dashboard Workspace</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+          {/* Direct CTA Button & Fallback */}
+          <div className="space-y-2 pt-1 relative z-40">
+            <button
+              type="button"
+              id="btn-masuk-workspace"
+              onClick={handleGoToWorkspace}
+              style={{ backgroundColor: 'var(--theme-primary, #059669)' }}
+              className="w-full py-4 rounded-2xl text-white font-black text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 hover:opacity-90 relative z-50 pointer-events-auto select-none"
+            >
+              <span>Masuk ke Dashboard Workspace</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            
+            <p className="text-[11px] text-slate-400">
+              Atau <a href="/dashboard" onClick={handleGoToWorkspace} className="underline font-bold text-slate-600 hover:text-emerald-700 cursor-pointer">klik di sini</a> jika ingin langsung ke dashboard.
+            </p>
+          </div>
 
           <div className="p-3 rounded-xl bg-slate-50 text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-[var(--theme-primary, #059669)]" /> Transaksi Terverifikasi Aman • Order ID: {orderId}

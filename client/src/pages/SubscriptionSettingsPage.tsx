@@ -30,11 +30,12 @@ import { useAuth } from '../lib/auth';
 import { loadMidtransSnap } from '../lib/payment';
 
 export default function SubscriptionSettingsPage() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, refreshUser } = useAuth();
   const [subscription, setSubscription] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [cancelModalOpen, setCancelModalOpen] = useState<boolean>(false);
+  const [cancelling, setCancelling] = useState<boolean>(false);
   const [cancelledSuccess, setCancelledSuccess] = useState<boolean>(false);
 
   // Top-Up Quota Modal State
@@ -139,9 +140,34 @@ export default function SubscriptionSettingsPage() {
   const totalMaterialsCount = subscription?.totalMaterialsCount ?? 0;
   const totalExamsCount = subscription?.totalExamsCount ?? 0;
 
-  const handleConfirmCancel = () => {
-    setCancelledSuccess(true);
-    setCancelModalOpen(false);
+  const handleConfirmCancel = async () => {
+    try {
+      setCancelling(true);
+      const token = localStorage.getItem('examigo_token');
+      const res = await fetch('/api/payments/cancel-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCancelledSuccess(true);
+        setCancelModalOpen(false);
+        // Refresh subscription & user context immediately
+        await fetchSubscription();
+        if (refreshUser) {
+          await refreshUser();
+        }
+      } else {
+        alert(data.message || 'Gagal membatalkan langganan');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Terjadi kesalahan saat membatalkan langganan');
+    } finally {
+      setCancelling(false);
+    }
   };
 
   // Helper for progress bar color
@@ -218,28 +244,41 @@ export default function SubscriptionSettingsPage() {
     <div className="space-y-8 animate-fade-in-fast max-w-6xl mx-auto pb-16">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <CreditCard className="w-7 h-7 text-[var(--theme-primary,#059669)]" />
-              Paket & Kuota Langganan
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
-              {limits.name}
-            </span>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200/80 pb-6">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/80 flex items-center justify-center text-[var(--theme-primary,#059669)] shadow-xs shrink-0">
+              <CreditCard className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  Paket & Kuota Langganan
+                </h1>
+                <span className={`px-3 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider border shadow-2xs ${
+                  effectivePlan === 'PRO_AI' 
+                    ? 'bg-amber-100 text-amber-900 border-amber-300' 
+                    : effectivePlan === 'PERSONAL' 
+                      ? 'bg-emerald-100 text-emerald-900 border-emerald-300' 
+                      : 'bg-slate-100 text-slate-700 border-slate-200'
+                }`}>
+                  {effectivePlan === 'PRO_AI' ? 'Pro' : effectivePlan === 'PERSONAL' ? 'Personal' : 'Free'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Pantau persentase penggunaan kuota pembuatan soal, sisa batas ujian, kapasitas peserta, serta top-up kuota satuan kapan saja.
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-slate-500 font-medium mt-1">
-            Pantau persentase penggunaan kuota pembuatan soal, sisa batas ujian, kapasitas peserta, serta top-up kuota satuan kapan saja.
-          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        {/* Action Buttons: Clean, unified row, responsive */}
+        <div className="flex items-center gap-2.5 self-start lg:self-auto flex-wrap sm:flex-nowrap shrink-0">
           <button
             type="button"
             onClick={fetchSubscription}
-            className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
-            title="Perbarui Data"
+            className="h-10 w-10 flex items-center justify-center rounded-xl border border-slate-200/80 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer shrink-0"
+            title="Perbarui Data Langganan"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[var(--theme-primary,#059669)]' : ''}`} />
           </button>
@@ -249,65 +288,100 @@ export default function SubscriptionSettingsPage() {
             <button
               type="button"
               onClick={() => setTopUpModalOpen(true)}
-              className={`px-4 py-2.5 rounded-xl border text-xs font-black shadow-xs transition-all flex items-center gap-2 cursor-pointer ${
+              className={`h-10 px-4 rounded-xl border text-xs font-black shadow-2xs transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
                 currentPlan === 'FREE'
                   ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-600'
-                  : 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-900'
+                  : 'bg-gradient-to-r from-amber-50 to-amber-100/70 hover:from-amber-100 hover:to-amber-200/70 border-amber-300/80 text-amber-900'
               }`}
             >
               {currentPlan === 'FREE' ? (
                 <>
                   <Lock className="w-3.5 h-3.5 text-slate-500" />
-                  Beli Kuota Satuan
+                  <span>Beli Kuota Satuan</span>
                   <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-bold">Personal & Pro</span>
                 </>
               ) : (
                 <>
-                  <Zap className="w-4 h-4 text-amber-600 fill-amber-500" />
-                  Beli Kuota Satuan
+                  <Zap className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
+                  <span>Beli Kuota Satuan</span>
                 </>
               )}
             </button>
           )}
 
-          {(currentPlan !== 'PRO_AI' || isExpired) ? (
+          {(effectivePlan !== 'PRO_AI') ? (
             <Link
               to="/checkout?plan=pro_ai&billing=monthly"
               style={{ backgroundColor: 'var(--theme-primary, #059669)' }}
-              className="px-5 py-2.5 rounded-xl text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 shrink-0 hover:opacity-95"
+              className="h-10 px-5 rounded-xl text-white font-black text-xs shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 shrink-0 hover:opacity-95 cursor-pointer"
             >
-              <Sparkles className="w-4 h-4 text-amber-200 fill-current" /> {isExpired ? 'Perpanjang Langganan Pro' : 'Upgrade ke Pro'}
+              <Sparkles className="w-4 h-4 text-amber-200 fill-current" />
+              <span>{isExpired ? 'Perpanjang Langganan Pro' : 'Upgrade ke Pro'}</span>
             </Link>
           ) : (
             <Link
               to="/checkout?plan=pro_ai&billing=yearly"
-              className="px-4 py-2.5 rounded-xl bg-slate-900 text-white font-extrabold text-xs shadow-sm hover:bg-slate-800 transition-all flex items-center gap-2"
+              className="h-10 px-5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
             >
-              <Sparkles className="w-4 h-4 text-amber-300" /> Perpanjang Langganan
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>Perpanjang Langganan</span>
             </Link>
           )}
         </div>
       </div>
 
       {isExpired && (
-        <div className="p-4 md:p-5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-bold space-y-1.5 shadow-2xs">
-          <p className="flex items-center gap-2 text-rose-700 font-black text-sm">
-            <AlertTriangle className="w-5 h-5 text-rose-600" /> Masa Aktif Paket Telah Habis
-          </p>
-          <p className="text-xs font-normal text-rose-800 leading-relaxed">
-            Masa aktif paket Anda telah kedaluwarsa pada <strong>{formattedValidUntil}</strong>. Seluruh benefit fitur Pro dan kuota tambahan otomatis dinonaktifkan dan kembali ke standar paket Free (15 Butir Soal, 1 Ujian Aktif). Silakan lakukan perpanjangan langganan untuk mengaktifkan kembali kuota & benefit Pro.
-          </p>
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-rose-50 via-rose-50/70 to-white border border-rose-200 text-rose-950 shadow-xs flex items-start justify-between gap-4 animate-fade-in-fast">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0 mt-0.5">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-black text-rose-900 flex items-center gap-2">
+                Masa Aktif Paket Telah Berakhir
+              </h4>
+              <p className="text-xs text-rose-800 leading-relaxed font-medium">
+                Masa aktif paket Anda telah kedaluwarsa pada <strong>{formattedValidUntil}</strong>. Seluruh benefit Pro dan kuota tambahan otomatis beralih ke standar paket Free (15 Butir Soal, 1 Ujian Aktif). Silakan lakukan perpanjangan langganan untuk mengaktifkan kembali fitur Pro.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/checkout?plan=pro_ai&billing=monthly"
+            className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs shrink-0 transition-colors hidden sm:inline-flex items-center gap-1.5"
+          >
+            <Sparkles className="w-3.5 h-3.5" /> Perpanjang
+          </Link>
         </div>
       )}
 
       {cancelledSuccess && (
-        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold space-y-1">
-          <p className="flex items-center gap-1.5">
-            <AlertTriangle className="w-4 h-4 text-amber-600" /> Langganan Berhasil Dibatalkan
-          </p>
-          <p className="text-[11px] font-normal text-amber-800">
-            Paket Anda tetap aktif hingga akhir periode penagihan ini. Setelah itu, akun Anda akan kembali ke Paket Free secara otomatis tanpa menghapus data Anda.
-          </p>
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50/50 to-white border border-emerald-200 text-emerald-950 shadow-xs flex items-start justify-between gap-4 animate-fade-in-fast">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-700 shrink-0 mt-0.5">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-sm font-black text-emerald-900">
+                  Langganan Berhasil Dibatalkan
+                </h4>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-200/70 text-emerald-800 border border-emerald-300">
+                  Kembali ke Paket Free
+                </span>
+              </div>
+              <p className="text-xs text-emerald-800 leading-relaxed font-medium">
+                Akun Anda kini telah langsung beralih ke <strong>Paket Free (Dasar)</strong>. Seluruh <strong>data bank soal, materi, dan riwayat ujian Anda tetap tersimpan 100% aman</strong> tanpa ada data yang terhapus.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCancelledSuccess(false)}
+            className="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100/60 transition-colors shrink-0 cursor-pointer"
+            title="Tutup Notifikasi"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
@@ -716,41 +790,43 @@ export default function SubscriptionSettingsPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-3 pt-3">
-              {addonPricing.enabled && (
-                <button
-                  type="button"
-                  onClick={() => setTopUpModalOpen(true)}
-                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
-                >
-                  <Zap className="w-4 h-4 fill-slate-950" /> Beli Kuota Satuan
-                </button>
-              )}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-100">
+              <div className="flex flex-wrap items-center gap-2.5">
+                {addonPricing.enabled && (
+                  <button
+                    type="button"
+                    onClick={() => setTopUpModalOpen(true)}
+                    className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    <Zap className="w-4 h-4 fill-slate-950" /> Beli Kuota Satuan
+                  </button>
+                )}
 
-              {currentPlan !== 'PRO_AI' && (
-                <Link
-                  to="/checkout?plan=pro_ai&billing=monthly"
-                  className="px-5 py-2.5 rounded-xl text-white font-extrabold text-xs shadow-md transition-all flex items-center gap-2 hover:opacity-95"
-                  style={{ backgroundColor: 'var(--theme-primary, #10B981)' }}
-                >
-                  <Sparkles className="w-4 h-4 fill-current text-amber-200" /> Upgrade ke Pro (Rp 149K)
-                </Link>
-              )}
+                {currentPlan !== 'PRO_AI' && (
+                  <Link
+                    to="/checkout?plan=pro_ai&billing=monthly"
+                    className="px-5 py-2.5 rounded-xl text-white font-extrabold text-xs shadow-xs transition-all flex items-center gap-2 hover:opacity-95"
+                    style={{ backgroundColor: 'var(--theme-primary, #10B981)' }}
+                  >
+                    <Sparkles className="w-4 h-4 fill-current text-amber-200" /> Upgrade ke Pro (Rp 149K)
+                  </Link>
+                )}
 
-              {currentPlan === 'FREE' && (
-                <Link
-                  to="/checkout?plan=personal&billing=monthly"
-                  className="px-5 py-2.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors"
-                >
-                  Pilih Personal (Rp 49K)
-                </Link>
-              )}
+                {currentPlan === 'FREE' && (
+                  <Link
+                    to="/checkout?plan=personal&billing=monthly"
+                    className="px-5 py-2.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors"
+                  >
+                    Pilih Personal (Rp 49K)
+                  </Link>
+                )}
+              </div>
 
               {currentPlan !== 'FREE' && (
                 <button
                   type="button"
                   onClick={() => setCancelModalOpen(true)}
-                  className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-500 font-bold text-xs transition-colors cursor-pointer ml-auto"
+                  className="px-4 py-2.5 rounded-xl bg-rose-50/60 hover:bg-rose-100 border border-rose-200 text-rose-700 hover:text-rose-800 font-bold text-xs transition-colors cursor-pointer self-start sm:self-auto"
                 >
                   Batalkan Langganan
                 </button>
@@ -1176,26 +1252,58 @@ export default function SubscriptionSettingsPage() {
 
       {/* Cancel Modal */}
       {cancelModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-fade-in-fast">
-            <h3 className="text-lg font-black text-slate-900">Batalkan Langganan?</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Paket Anda akan tetap aktif hingga akhir periode berjalan (<strong>{formattedValidUntil}</strong>). Setelah tanggal tersebut, akun Anda akan kembali ke Paket Free secara otomatis tanpa menghapus data bank soal maupun ujian Anda.
-            </p>
-            <div className="flex justify-end gap-3 pt-2">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-5 animate-scale-in border border-slate-100">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-slate-900">Batalkan Langganan?</h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  Konfirmasi pengalihan akun ke Paket Dasar Free
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5 text-xs text-slate-700">
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span>Seluruh bank soal & riwayat ujian Anda <strong>100% aman & tidak akan dihapus</strong>.</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <span>Akun langsung beralih ke Paket Free dengan kuota dasar 15 butir soal dan 1 ujian aktif.</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <Sparkles className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                <span>Anda dapat berlangganan kembali kapan saja untuk membuka fitur Pro.</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
+                disabled={cancelling}
                 onClick={() => setCancelModalOpen(false)}
-                className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs hover:bg-slate-200 transition-colors"
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors disabled:opacity-50 cursor-pointer"
               >
                 Tetap Berlangganan
               </button>
               <button
                 type="button"
+                disabled={cancelling}
                 onClick={handleConfirmCancel}
-                className="px-4 py-2.5 rounded-xl bg-red-600 text-white font-bold text-xs hover:bg-red-700 transition-colors"
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs shadow-md shadow-rose-600/20 transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
               >
-                Ya, Batalkan Langganan
+                {cancelling ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Membatalkan...</span>
+                  </>
+                ) : (
+                  <span>Ya, Batalkan Sekarang</span>
+                )}
               </button>
             </div>
           </div>
