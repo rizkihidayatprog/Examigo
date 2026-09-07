@@ -15,7 +15,7 @@ export interface CheckoutResult {
 
 export const loadMidtransSnap = (isProduction: boolean = false, clientKey?: string): Promise<void> => {
   return new Promise((resolve) => {
-    const cKey = clientKey || import.meta.env.VITE_MIDTRANS_CLIENT_KEY || 'Mid-client-DXxW43_G0huL7fSm';
+    const cKey = clientKey || import.meta.env.VITE_MIDTRANS_CLIENT_KEY || 'Mid-client-OMIOTErdLFHHLfaI';
     const targetSrc = isProduction
       ? 'https://app.midtrans.com/snap/snap.js'
       : 'https://app.sandbox.midtrans.com/snap/snap.js';
